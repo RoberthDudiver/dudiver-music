@@ -1,6 +1,7 @@
 @page "/"
 @implements IAsyncDisposable
 @inject IJSRuntime JS
+@using System.Text.Json
 
 <!-- Inputs reales de archivos: se disparan por <label for> (nativo, mantiene el gesto de usuario). -->
 <input id="dmFiles" type="file" multiple accept="audio/*,.mp3,.wav,.flac,.m4a,.aac,.ogg,.opus,.aiff"
@@ -76,7 +77,7 @@
                         {
                             <div class="acts">
                                 <button title="@T("TipRename")" @onclick="() => StartRename(p)" @onclick:stopPropagation="true">@Ico("edit")</button>
-                                <button title="@T("TipDelete")" @onclick="() => Delete(p)" @onclick:stopPropagation="true">@Ico("trash")</button>
+                                <button title="@T("TipDelete")" @onclick="() => AskDelete(p)" @onclick:stopPropagation="true">@Ico("trash")</button>
                             </div>
                         }
                     </div>
@@ -90,15 +91,37 @@
             @if (selected is not null)
             {
                 <div class="plview">
-                    <div class="eyebrow">@T("Playlist")</div>
-                    <h2>@selected.Name</h2>
-                    <div class="subc">@CountText(selected.Tracks.Count)</div>
-                    <div class="tracks">
-                        @foreach (var t in selected.Tracks)
+                    <div class="plhead">
+                        <div>
+                            <div class="eyebrow">@T("Playlist")</div>
+                            <h2>@selected.Name</h2>
+                            <div class="subc">@PlaylistMeta(selected)</div>
+                        </div>
+                        @if (selected.Tracks.Count > 6)
                         {
-                            <div class="tr @(t == current ? "playing" : "")" @ondblclick="() => PlayTrack(selected, t)"
-                                 @onclick="() => PlayTrack(selected, t)">
-                                <div class="ix">
+                            <div class="search">
+                                @Ico("search")
+                                <input type="text" placeholder="@T("SearchPh")" value="@search"
+                                       @oninput="e => search = e.Value?.ToString() ?? string.Empty" />
+                                @if (!string.IsNullOrEmpty(search))
+                                {
+                                    <button class="search-x" @onclick="() => search = string.Empty">@Ico("close")</button>
+                                }
+                            </div>
+                        }
+                    </div>
+                    <div class="tracks">
+                        @if (VisibleTracks.Count == 0)
+                        {
+                            <div class="empty-list">@T("NoResults")</div>
+                        }
+                        @foreach (var t in VisibleTracks)
+                        {
+                            <div class="tr @(t == current ? "playing" : "")"
+                                 draggable="@(CanReorder ? "true" : "false")"
+                                 @ondragstart="() => OnDragStart(t)" @ondragover:preventDefault="true"
+                                 @ondrop="() => OnDropOn(t)">
+                                <div class="ix" @onclick="() => PlayTrack(selected, t)">
                                     @if (t == current)
                                     {
                                         <span class="eq"><i></i><i></i><i></i><i></i></span>
@@ -108,8 +131,10 @@
                                         <span class="play">@Ico("play")</span>
                                     }
                                 </div>
-                                <div class="ti">@t.Title</div>
+                                <div class="ti" @onclick="() => PlayTrack(selected, t)">@t.Title</div>
                                 <div class="du">@t.DurationText</div>
+                                <button class="tr-x" title="@T("RemoveTrack")" @onclick="() => RemoveTrack(t)"
+                                        @onclick:stopPropagation="true">@Ico("close")</button>
                             </div>
                         }
                     </div>
@@ -277,6 +302,21 @@
     </div>
 }
 
+@if (toDelete is not null)
+{
+    <div class="modal-bg" @onclick="CancelDelete">
+        <div class="confirm" @onclick:stopPropagation="true">
+            <div class="confirm-ic">@Ico("trash")</div>
+            <h3>@T("DeleteTitle")</h3>
+            <p>@(string.Format(T("DeleteText"), toDelete.Name))</p>
+            <div class="confirm-btns">
+                <button class="ghost" style="height:40px;padding:0 20px" @onclick="CancelDelete">@T("Cancel")</button>
+                <button class="danger" @onclick="ConfirmDelete">@T("Delete")</button>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     // ===== Estado =====
     List<Playlist> playlists = new();
@@ -313,8 +353,9 @@
             selfRef = DotNetObjectReference.Create(this);
             await JS.InvokeVoidAsync("dudiverPlayer.init", selfRef);
             await JS.InvokeVoidAsync("dudiverPlayer.attachDrop", appEl);
-            await JS.InvokeVoidAsync("dudiverPlayer.setVolume", volume);
             jsReady = true;
+            await LoadLibrary();
+            await JS.InvokeVoidAsync("dudiverPlayer.setVolume", volume);
         }
         if (pendingFocusRename)
         {
@@ -360,7 +401,67 @@
         target.Tracks.AddRange(tracks);
         showSidebar = false;
         StateHasChanged();
+        await Persist();
+        _ = LoadDurations(tracks);   // en segundo plano
     }
+
+    // ===== Duraciones (en segundo plano) =====
+    async Task LoadDurations(List<Track> tracks)
+    {
+        var pending = tracks.Where(t => t.DurationSeconds <= 0).Select(t => t.Id).ToArray();
+        if (pending.Length == 0) return;
+        try
+        {
+            var durs = await JS.InvokeAsync<DurDto[]>("dudiverPlayer.getDurations", pending);
+            var map = tracks.ToDictionary(t => t.Id);
+            foreach (var d in durs)
+                if (d.Dur > 0 && map.TryGetValue(d.Id, out var tr)) tr.DurationSeconds = d.Dur;
+            StateHasChanged();
+            await Persist();
+        }
+        catch { }
+    }
+
+    // ===== Persistencia (IndexedDB) =====
+    bool _loading;
+
+    async Task Persist()
+    {
+        if (_loading || !jsReady) return;
+        var data = playlists.Select(p => new PlDto(
+            p.Id, p.Name,
+            p.Tracks.Select(t => new TrDto(t.Id, t.Title, t.DurationSeconds)).ToList())).ToList();
+        try { await JS.InvokeVoidAsync("dudiverPlayer.savePlaylists", JsonSerializer.Serialize(data)); } catch { }
+    }
+
+    async Task LoadLibrary()
+    {
+        _loading = true;
+        try
+        {
+            var json = await JS.InvokeAsync<string?>("dudiverPlayer.loadPlaylists");
+            if (!string.IsNullOrEmpty(json))
+            {
+                var data = JsonSerializer.Deserialize<List<PlDto>>(json);
+                if (data is not null)
+                {
+                    playlists = data.Select(p => new Playlist
+                    {
+                        Id = p.Id,
+                        Name = p.Name,
+                        Tracks = p.Tracks.Select(t => new Track { Id = t.Id, Title = t.Title, DurationSeconds = t.Dur }).ToList()
+                    }).ToList();
+                    selected = playlists.FirstOrDefault();
+                }
+            }
+        }
+        catch { }
+        finally { _loading = false; StateHasChanged(); }
+    }
+
+    record PlDto(string Id, string Name, List<TrDto> Tracks);
+    record TrDto(string Id, string Title, double Dur);
+    record DurDto(string Id, double Dur);
 
     // ===== Reproducción =====
     async Task PlayTrack(Playlist pl, Track t)
@@ -448,34 +549,91 @@
     string RepeatTip() => repeat switch { 1 => T("RepeatAll"), 2 => T("RepeatOne"), _ => T("RepeatOff") };
 
     // ===== Playlists =====
-    void Select(Playlist p) { selected = p; showSidebar = false; }
+    string search = "";
+    Playlist? toDelete;
+    Track? dragTrack;
 
-    void NewPlaylist()
+    List<Track> VisibleTracks => selected is null ? new()
+        : string.IsNullOrWhiteSpace(search) ? selected.Tracks
+        : selected.Tracks.Where(t => t.Title.Contains(search.Trim(), StringComparison.OrdinalIgnoreCase)).ToList();
+    bool CanReorder => string.IsNullOrWhiteSpace(search);
+
+    string PlaylistMeta(Playlist p)
+    {
+        int n = p.Tracks.Count;
+        var count = n == 1 ? T("SongOne") : string.Format(T("SongMany"), n);
+        double total = p.Tracks.Sum(t => t.DurationSeconds);
+        return total > 0 ? $"{count} · {DurText(total)}" : count;
+    }
+    static string DurText(double s)
+    {
+        var ts = TimeSpan.FromSeconds(s);
+        return ts.TotalHours >= 1 ? $"{(int)ts.TotalHours} h {ts.Minutes} min" : $"{ts.Minutes} min";
+    }
+
+    void Select(Playlist p) { selected = p; search = ""; showSidebar = false; }
+
+    async Task NewPlaylist()
     {
         var p = new Playlist { Name = T("NewPlaylistName"), IsRenaming = true };
         playlists.Add(p);
-        selected = p;
-        pendingFocusRename = true;
-        showSidebar = false;
+        selected = p; search = "";
+        pendingFocusRename = true; showSidebar = false;
+        await Persist();
     }
 
     bool pendingFocusRename;
     void StartRename(Playlist p) { p.IsRenaming = true; pendingFocusRename = true; }
-    void CommitRename(Playlist p, ChangeEventArgs e)
+    async Task CommitRename(Playlist p, ChangeEventArgs e)
     {
         var v = e.Value?.ToString();
         if (!string.IsNullOrWhiteSpace(v)) p.Name = v!.Trim();
         p.IsRenaming = false;
+        await Persist();
     }
     void RenameKey(Playlist p, KeyboardEventArgs e)
     {
-        if (e.Key == "Enter") p.IsRenaming = false;
-        else if (e.Key == "Escape") p.IsRenaming = false;
+        if (e.Key is "Enter" or "Escape") p.IsRenaming = false;
     }
-    void Delete(Playlist p)
+
+    // Borrar playlist (con confirmación)
+    void AskDelete(Playlist p) { toDelete = p; }
+    void CancelDelete() => toDelete = null;
+    async Task ConfirmDelete()
     {
-        playlists.Remove(p);
-        if (selected == p) selected = playlists.FirstOrDefault();
+        if (toDelete is null) return;
+        playlists.Remove(toDelete);
+        if (selected == toDelete) { selected = playlists.FirstOrDefault(); search = ""; }
+        toDelete = null;
+        await PersistAndPrune();
+    }
+
+    // Quitar una pista de la playlist
+    async Task RemoveTrack(Track t)
+    {
+        if (selected is null) return;
+        selected.Tracks.Remove(t);
+        if (current == t) { current = null; isPlaying = false; }
+        await PersistAndPrune();
+    }
+
+    // Reordenar por drag
+    void OnDragStart(Track t) => dragTrack = t;
+    async Task OnDropOn(Track target)
+    {
+        if (selected is null || dragTrack is null || dragTrack == target) { dragTrack = null; return; }
+        var list = selected.Tracks;
+        list.Remove(dragTrack);
+        list.Insert(list.IndexOf(target), dragTrack);
+        dragTrack = null;
+        await Persist();
+    }
+
+    async Task PersistAndPrune()
+    {
+        await Persist();
+        var keep = playlists.SelectMany(p => p.Tracks.Select(t => t.Id)).Distinct().ToArray();
+        try { await JS.InvokeVoidAsync("dudiverPlayer.pruneBlobs", keep); } catch { }
     }
 
     // ===== Dispositivos de salida =====
@@ -546,6 +704,7 @@
         ["check"] = "<path d='M4 12l5 5L20 6' stroke='currentColor' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/>",
         ["menu"] = "<path d='M4 7h16M4 12h16M4 17h16' stroke='currentColor' stroke-width='2' stroke-linecap='round'/>",
         ["chevrondown"] = "<path d='M6 9l6 6 6-6' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/>",
+        ["search"] = "<circle cx='11' cy='11' r='7' stroke='currentColor' stroke-width='2'/><path d='M21 21l-4.2-4.2' stroke='currentColor' stroke-width='2' stroke-linecap='round'/>",
         ["info"] = "<circle cx='12' cy='12' r='9' stroke='currentColor' stroke-width='1.7'/><path d='M12 11v5' stroke='currentColor' stroke-width='2' stroke-linecap='round'/><circle cx='12' cy='7.6' r='1.2' fill='currentColor'/>",
         ["close"] = "<path d='M6 6l12 12M18 6 6 18' stroke='currentColor' stroke-width='2' stroke-linecap='round'/>",
         ["heart"] = "<path d='M12 21s-7-4.4-9.4-8.8A5 5 0 0 1 12 6.1 5 5 0 0 1 21.4 12.2C19 16.6 12 21 12 21z' fill='currentColor'/>",
@@ -567,6 +726,9 @@
         ["OutputUnsupported"] = "Tu navegador no permite elegir la salida (usá Chrome o Edge).",
         ["MySongs"] = "Mis canciones", ["NewPlaylistName"] = "Nueva playlist", ["NowPlaying"] = "Sonando ahora",
         ["SongOne"] = "1 canción", ["SongMany"] = "{0} canciones",
+        ["SearchPh"] = "Buscar en la playlist…", ["NoResults"] = "Sin resultados", ["RemoveTrack"] = "Quitar de la playlist",
+        ["DeleteTitle"] = "¿Eliminar playlist?", ["DeleteText"] = "Se va a eliminar «{0}». Esta acción no se puede deshacer.",
+        ["Cancel"] = "Cancelar", ["Delete"] = "Eliminar",
         ["About"] = "Acerca de", ["Close"] = "Cerrar", ["Version"] = "Versión 1.0.0", ["DonateShort"] = "Donar",
         ["AppTagline"] = "Reproductor de música moderno y sencillo.",
         ["AboutStory"] = "Hecho por un músico, para escuchar música rápido y fácil, sin depender de sistemas complejos. Lo creé para escuchar mi disco antes de lanzarlo —como sonaría en las plataformas— y lo comparto para gente con la misma necesidad.",
@@ -592,6 +754,9 @@
         ["OutputUnsupported"] = "Your browser can't pick the output (use Chrome or Edge).",
         ["MySongs"] = "My songs", ["NewPlaylistName"] = "New playlist", ["NowPlaying"] = "Now playing",
         ["SongOne"] = "1 song", ["SongMany"] = "{0} songs",
+        ["SearchPh"] = "Search this playlist…", ["NoResults"] = "No results", ["RemoveTrack"] = "Remove from playlist",
+        ["DeleteTitle"] = "Delete playlist?", ["DeleteText"] = "“{0}” will be deleted. This can't be undone.",
+        ["Cancel"] = "Cancel", ["Delete"] = "Delete",
         ["About"] = "About", ["Close"] = "Close", ["Version"] = "Version 1.0.0", ["DonateShort"] = "Donate",
         ["AppTagline"] = "A modern, simple music player.",
         ["AboutStory"] = "Made by a musician, to listen to music fast and easy, without relying on complex systems. I built it to hear my album before releasing it —how it would sound on the platforms— and I share it for people with the same need.",
