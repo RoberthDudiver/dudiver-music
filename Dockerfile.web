@@ -8,8 +8,9 @@ RUN dotnet restore DudiverMusic.Web/DudiverMusic.Web.csproj
 COPY DudiverMusic.Web/ DudiverMusic.Web/
 
 # La versión (github.sha) dispara el auto-update en los clientes.
-ARG VERSION=dev
-RUN echo "{ \"version\": \"${VERSION}\" }" > DudiverMusic.Web/wwwroot/version.json
+# OJO: no llamar la ARG "VERSION" — MSBuild la tomaría como $(Version) y rompe el publish.
+ARG APP_VERSION=dev
+RUN echo "{ \"version\": \"${APP_VERSION}\" }" > DudiverMusic.Web/wwwroot/version.json
 
 RUN dotnet publish DudiverMusic.Web/DudiverMusic.Web.csproj -c Release -o /app/publish --no-restore
 

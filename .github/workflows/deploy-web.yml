@@ -39,7 +39,7 @@ jobs:
           file: Dockerfile.web
           push: true
           build-args: |
-            VERSION=${{ github.sha }}
+            APP_VERSION=${{ github.sha }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
