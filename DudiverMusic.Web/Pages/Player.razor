@@ -578,7 +578,25 @@
         playingList = pl;
         current = t;
         position = 0; duration = t.DurationSeconds;
-        var status = await JS.InvokeAsync<string>("dudiverPlayer.play", t.Id, t.Title);
+        string status;
+        try
+        {
+            // JsonElement (no string) para tolerar una versión vieja de player.js en caché
+            // que devolvía bool (true=sonando / false=sin blob) y no romper el render.
+            var res = await JS.InvokeAsync<JsonElement>("dudiverPlayer.play", t.Id, t.Title);
+            status = res.ValueKind switch
+            {
+                JsonValueKind.String => res.GetString() ?? "ok",
+                JsonValueKind.True => "ok",
+                JsonValueKind.False => "missing",
+                _ => "ok"
+            };
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[Dudiver] interop play falló: {ex.Message}");
+            status = "ok";
+        }
         if (status != "ok")
         {
             isPlaying = false;

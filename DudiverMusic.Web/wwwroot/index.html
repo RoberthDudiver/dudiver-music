@@ -34,7 +34,6 @@
     <link rel="apple-touch-icon" href="icon-192.png" />
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="stylesheet" href="css/app.css" />
-    <link href="DudiverMusic.Web.styles.css" rel="stylesheet" />
 
     <!-- Datos estructurados (SEO + para que la IA entienda y recomiende la app). -->
     <script type="application/ld+json">
@@ -156,7 +155,7 @@
     <script src="js/jsmediatags.min.js"></script>
     <script src="js/player.js"></script>
     <script>
-        // Auto-update: si cambia version.json, limpia caches y recarga.
+        // Auto-update: si cambia version.json, actualiza el SW, limpia caches y recarga.
         (async () => {
             try {
                 const r = await fetch('version.json?_=' + Date.now(), { cache: 'no-store' });
@@ -164,17 +163,28 @@
                 const { version } = await r.json();
                 const prev = localStorage.getItem('dm-version');
                 if (prev && prev !== version) {
-                    if (self.caches) for (const k of await caches.keys()) await caches.delete(k);
                     localStorage.setItem('dm-version', version);
+                    try {
+                        if ('serviceWorker' in navigator) {
+                            const reg = await navigator.serviceWorker.getRegistration();
+                            if (reg) await reg.update();
+                        }
+                        if (self.caches) for (const k of await caches.keys()) await caches.delete(k);
+                    } catch { }
                     location.reload();
                     return;
                 }
                 localStorage.setItem('dm-version', version);
             } catch { /* offline */ }
         })();
-        // PWA: instalable + offline
-        if ('serviceWorker' in navigator)
+        // PWA: instalable + offline. Si aparece un SW nuevo, tomar control y recargar una vez.
+        if ('serviceWorker' in navigator) {
+            let refreshing = false;
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                if (refreshing) return; refreshing = true; location.reload();
+            });
             window.addEventListener('load', () => navigator.serviceWorker.register('service-worker.js').catch(() => { }));
+        }
     </script>
 </body>
 
