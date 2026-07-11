@@ -13,6 +13,9 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="stylesheet" href="css/app.css" />
     <link href="DudiverMusic.Web.styles.css" rel="stylesheet" />
+    <!-- El SDK inyecta acá el import map que resuelve dotnet.js -> dotnet.<hash>.js.
+         Sin esto, el publish con fingerprint no arranca (dotnet.js da 404). -->
+    <script type="importmap"></script>
 </head>
 
 <body>
