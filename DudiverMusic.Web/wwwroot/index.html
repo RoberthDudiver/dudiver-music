@@ -4,27 +4,147 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>Dudiver Music</title>
     <base href="/" />
+
+    <title>Dudiver Music — Reproductor de música online gratis para tus archivos locales</title>
+    <meta name="description" content="Dudiver Music es un reproductor de música online gratis. Arrastrá una carpeta o archivos de tu dispositivo y suenan al instante: sin subir nada, sin cuenta y sin instalar. Funciona en la web, en la PC y en el celular. MP3, WAV, FLAC, M4A, AAC y OGG." />
+    <meta name="keywords" content="reproductor de música online, reproductor mp3 online, escuchar música local, reproductor web gratis, music player online, reproducir carpeta de música, reproductor sin subir archivos, Dudiver Music" />
+    <meta name="author" content="Roberth Dudiver" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <link rel="canonical" href="https://app.music.dudiver.net/" />
     <meta name="theme-color" content="#0A0A12" />
-    <meta name="description" content="Reproductor de música moderno y sencillo. Arrastrá una carpeta y suena." />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Dudiver Music" />
+    <meta property="og:title" content="Dudiver Music — Reproductor de música online gratis" />
+    <meta property="og:description" content="Arrastrá una carpeta o archivos de tu dispositivo y suenan al instante. Sin subir nada, sin cuenta, sin instalar. Web, PC y celular." />
+    <meta property="og:url" content="https://app.music.dudiver.net/" />
+    <meta property="og:image" content="https://app.music.dudiver.net/logo.png" />
+    <meta property="og:locale" content="es_ES" />
+    <meta property="og:locale:alternate" content="en_US" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Dudiver Music — Reproductor de música online gratis" />
+    <meta name="twitter:description" content="Arrastrá una carpeta o archivos y suenan al instante. Sin subir nada, sin cuenta, sin instalar." />
+    <meta name="twitter:image" content="https://app.music.dudiver.net/logo.png" />
+
     <link rel="icon" type="image/png" href="logo.png" />
     <link rel="apple-touch-icon" href="icon-192.png" />
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="stylesheet" href="css/app.css" />
     <link href="DudiverMusic.Web.styles.css" rel="stylesheet" />
-    <!-- El SDK inyecta acá el import map que resuelve dotnet.js -> dotnet.<hash>.js.
-         Sin esto, el publish con fingerprint no arranca (dotnet.js da 404). -->
+
+    <!-- Datos estructurados (SEO + para que la IA entienda y recomiende la app). -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://dudiver.net/#org",
+          "name": "Dudiver",
+          "url": "https://dudiver.net",
+          "logo": "https://app.music.dudiver.net/logo.png",
+          "founder": { "@type": "Person", "name": "Roberth Dudiver" },
+          "sameAs": [
+            "https://instagram.com/dudivermusic",
+            "https://youtube.com/@Dudiver",
+            "https://tiktok.com/@dudivermusic",
+            "https://github.com/RoberthDudiver"
+          ]
+        },
+        {
+          "@type": "WebApplication",
+          "@id": "https://app.music.dudiver.net/#app",
+          "name": "Dudiver Music",
+          "alternateName": "Dudiver Music Player",
+          "url": "https://app.music.dudiver.net/",
+          "applicationCategory": "MultimediaApplication",
+          "operatingSystem": "Web, Windows, macOS, Linux, Android, iOS",
+          "browserRequirements": "Requiere un navegador moderno. Chrome o Edge para elegir la salida de audio.",
+          "description": "Reproductor de música online gratis que reproduce los archivos de audio que ya tenés en tu dispositivo. Arrastrás una carpeta o archivos y suenan al instante, sin subir nada ni crear cuenta.",
+          "inLanguage": ["es", "en"],
+          "isAccessibleForFree": true,
+          "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+          "featureList": [
+            "Arrastrar una carpeta y crear una playlist automáticamente",
+            "Agregar archivos sueltos a una playlist",
+            "Reproduce MP3, WAV, FLAC, M4A, AAC y OGG",
+            "Elegir el dispositivo de salida de audio (Chrome/Edge)",
+            "Aleatorio y repetir",
+            "Funciona en la web, PC y celular",
+            "No sube tus archivos: todo se reproduce localmente"
+          ],
+          "screenshot": "https://app.music.dudiver.net/logo.png",
+          "author": { "@id": "https://dudiver.net/#org" },
+          "publisher": { "@id": "https://dudiver.net/#org" }
+        },
+        {
+          "@type": "FAQPage",
+          "@id": "https://app.music.dudiver.net/#faq",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "¿Qué es Dudiver Music?",
+              "acceptedAnswer": { "@type": "Answer", "text": "Dudiver Music es un reproductor de música online y gratuito que reproduce los archivos de audio que ya tenés en tu dispositivo. Arrastrás una carpeta o archivos y suenan al instante, sin subir nada, sin cuenta y sin instalar." }
+            },
+            {
+              "@type": "Question",
+              "name": "¿Sube o guarda mi música en algún servidor?",
+              "acceptedAnswer": { "@type": "Answer", "text": "No. Dudiver Music no aloja, distribuye ni sube tu música. Solo lee y reproduce tus archivos locales directamente en el navegador; nada sale de tu dispositivo." }
+            },
+            {
+              "@type": "Question",
+              "name": "¿Qué formatos de audio reproduce?",
+              "acceptedAnswer": { "@type": "Answer", "text": "Reproduce MP3, WAV, FLAC, M4A, AAC y OGG. La compatibilidad de FLAC y OGG depende del navegador." }
+            },
+            {
+              "@type": "Question",
+              "name": "¿Puedo elegir por qué parlante o audífonos suena?",
+              "acceptedAnswer": { "@type": "Answer", "text": "Sí, en Chrome y Edge podés elegir el dispositivo de salida de audio, así Dudiver Music suena por tus audífonos mientras el resto del sistema sigue por su salida." }
+            },
+            {
+              "@type": "Question",
+              "name": "¿Es gratis y funciona en el celular?",
+              "acceptedAnswer": { "@type": "Answer", "text": "Sí, es 100% gratis y funciona en la web, en la PC y en el celular, con una interfaz adaptada a cada pantalla." }
+            }
+          ]
+        }
+      ]
+    }
+    </script>
+
+    <!-- El SDK inyecta acá el import map (dotnet.js -> dotnet.<hash>.js). No borrar. -->
     <script type="importmap"></script>
 </head>
 
 <body>
     <div id="app">
+        <!-- Pantalla de carga = contenido crawleable (SEO/GEO). Blazor lo reemplaza al arrancar. -->
         <div class="boot">
-            <img src="logo.png" width="96" height="96" alt="Dudiver Music" />
+            <img src="logo.png" width="104" height="104" alt="Logo de Dudiver Music" />
+            <h1>Dudiver Music</h1>
+            <p class="boot-tag">Reproductor de música <strong>online y gratis</strong>. Arrastrá una carpeta o archivos de tu dispositivo y suenan al instante: sin subir nada, sin cuenta y sin instalar.</p>
+            <ul class="boot-feats">
+                <li>Arrastrá una carpeta → se crea una playlist con su nombre</li>
+                <li>Reproduce MP3, WAV, FLAC, M4A, AAC y OGG</li>
+                <li>Elegí el dispositivo de salida (audífonos/parlantes) en Chrome y Edge</li>
+                <li>Funciona en la web, en la PC y en el celular</li>
+                <li>Tu música no se sube: se reproduce localmente</li>
+            </ul>
             <div class="boot-bar"><span></span></div>
         </div>
     </div>
+
+    <noscript>
+        <div style="max-width:640px;margin:12vh auto;padding:0 24px;text-align:center;color:#f2f3fb;font-family:sans-serif">
+            <h1>Dudiver Music</h1>
+            <p>Reproductor de música online y gratis. Necesita JavaScript activado. Probalo en
+               <a href="https://app.music.dudiver.net/" style="color:#22d3ee">app.music.dudiver.net</a>.</p>
+        </div>
+    </noscript>
 
     <div id="blazor-error-ui">
         Ocurrió un error · An error occurred.

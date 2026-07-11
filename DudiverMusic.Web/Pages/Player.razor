@@ -14,6 +14,9 @@
             </div>
         </div>
         <div class="topbar-actions">
+            <a class="donate-btn" href="https://paypal.me/dudivermusic" target="_blank" rel="noopener" title="@T("Donate")">
+                @Ico("heart")<span class="donate-txt">@T("DonateShort")</span>
+            </a>
             <button class="chip" title="@T("About")" @onclick="() => showAbout = true">@Ico("info")</button>
             <button class="chip" title="@T("Language")" @onclick="ToggleLangPopup">@Ico("globe")</button>
             @if (showLang)
@@ -181,6 +184,60 @@
             <input type="range" class="volume" min="0" max="1" step="0.02" value="@volume" @oninput="OnVolume" />
         </div>
     </footer>
+
+    <!-- ===== Mini-player (mobile) — tap para pantalla completa ===== -->
+    <div class="miniplayer" @onclick="() => npExpanded = true">
+        <div class="mp-seek"><div class="mp-fill" style="width:@SeekPct%"></div></div>
+        <div class="mp-art @(isPlaying ? "spin" : "")"><img src="logo.png" alt="" /></div>
+        <div class="mp-info">
+            <div class="mp-t1">@(current?.Title ?? T("NothingPlaying"))</div>
+            <div class="mp-t2">@(playingList?.Name ?? "")</div>
+        </div>
+        <button class="icon-btn" @onclick:stopPropagation="true" @onclick="TogglePlay">@Ico(isPlaying ? "pause" : "play")</button>
+        <button class="icon-btn" @onclick:stopPropagation="true" @onclick="Next">@Ico("next")</button>
+    </div>
+
+    <!-- ===== Pantalla completa "Sonando ahora" (mobile) ===== -->
+    @if (npExpanded)
+    {
+        <div class="npfull">
+            <div class="npf-top">
+                <button class="chip" title="@T("Close")" @onclick="() => npExpanded = false">@Ico("chevrondown")</button>
+                <span class="npf-h">@T("NowPlaying")</span>
+                <button class="chip @(currentDeviceName is not null ? "on" : "")" title="@T("Output")" @onclick="OpenOutput">@Ico("speaker")</button>
+            </div>
+
+            <div class="npf-art @(isPlaying ? "spin" : "")">
+                <div class="npf-glow"></div>
+                <img src="logo.png" alt="Dudiver Music" />
+            </div>
+
+            <div class="npf-meta">
+                <div class="npf-title">@(current?.Title ?? T("NothingPlaying"))</div>
+                <div class="npf-sub">@(playingList?.Name ?? "")</div>
+            </div>
+
+            <div class="npf-seek">
+                <input type="range" class="seek" min="0" max="@Math.Max(1, duration)" step="0.1"
+                       value="@position" @oninput="OnSeek" />
+                <div class="npf-times"><span>@Fmt(position)</span><span>@Fmt(duration)</span></div>
+            </div>
+
+            <div class="npf-controls">
+                <button class="icon-btn @(shuffle ? "on" : "")" title="@T("Shuffle")" @onclick="ToggleShuffle">@Ico("shuffle")</button>
+                <button class="icon-btn" title="@T("Previous")" @onclick="Previous">@Ico("prev")</button>
+                <button class="play-btn" @onclick="TogglePlay">@Ico(isPlaying ? "pause" : "play")</button>
+                <button class="icon-btn" title="@T("Next")" @onclick="Next">@Ico("next")</button>
+                <button class="icon-btn @(repeat != 0 ? "on" : "")" title="@RepeatTip()" @onclick="CycleRepeat" style="position:relative">
+                    @Ico("repeat")
+                    @if (repeat == 2)
+                    {
+                        <span style="position:absolute;font-size:8px;font-weight:700;bottom:9px;right:9px;color:var(--cyan)">1</span>
+                    }
+                </button>
+            </div>
+        </div>
+    }
 </div>
 
 @if (showAbout)
@@ -227,8 +284,9 @@
     int repeat; // 0 off, 1 all, 2 one
     readonly Random rng = new();
 
-    // Popups / dispositivos / drawer
-    bool showDevices, showLang, showAbout, outputUnsupported, showSidebar;
+    // Popups / dispositivos / drawer / full-screen
+    bool showDevices, showLang, showAbout, outputUnsupported, showSidebar, npExpanded;
+    double SeekPct => duration > 0 ? Math.Clamp(position / duration * 100, 0, 100) : 0;
     List<AudioDeviceInfo> devices = new();
     string? currentDeviceName;
 
@@ -488,6 +546,7 @@
         ["speaker"] = "<path d='M4 13v-1a8 8 0 0 1 16 0v1' stroke='currentColor' stroke-width='1.8'/><rect x='3' y='13' width='4' height='7' rx='2' stroke='currentColor' stroke-width='1.8'/><rect x='17' y='13' width='4' height='7' rx='2' stroke='currentColor' stroke-width='1.8'/>",
         ["check"] = "<path d='M4 12l5 5L20 6' stroke='currentColor' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/>",
         ["menu"] = "<path d='M4 7h16M4 12h16M4 17h16' stroke='currentColor' stroke-width='2' stroke-linecap='round'/>",
+        ["chevrondown"] = "<path d='M6 9l6 6 6-6' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/>",
         ["info"] = "<circle cx='12' cy='12' r='9' stroke='currentColor' stroke-width='1.7'/><path d='M12 11v5' stroke='currentColor' stroke-width='2' stroke-linecap='round'/><circle cx='12' cy='7.6' r='1.2' fill='currentColor'/>",
         ["close"] = "<path d='M6 6l12 12M18 6 6 18' stroke='currentColor' stroke-width='2' stroke-linecap='round'/>",
         ["heart"] = "<path d='M12 21s-7-4.4-9.4-8.8A5 5 0 0 1 12 6.1 5 5 0 0 1 21.4 12.2C19 16.6 12 21 12 21z' fill='currentColor'/>",
@@ -506,9 +565,9 @@
         ["RepeatAll"] = "Repetir la playlist", ["RepeatOne"] = "Repetir esta canción", ["Mute"] = "Silenciar",
         ["Output"] = "Salida de audio", ["NoDevices"] = "Sin dispositivos", ["SystemDefault"] = "Predeterminado del sistema",
         ["OutputUnsupported"] = "Tu navegador no permite elegir la salida (usá Chrome o Edge).",
-        ["MySongs"] = "Mis canciones", ["NewPlaylistName"] = "Nueva playlist",
+        ["MySongs"] = "Mis canciones", ["NewPlaylistName"] = "Nueva playlist", ["NowPlaying"] = "Sonando ahora",
         ["SongOne"] = "1 canción", ["SongMany"] = "{0} canciones",
-        ["About"] = "Acerca de", ["Close"] = "Cerrar", ["Version"] = "Versión 1.0.0",
+        ["About"] = "Acerca de", ["Close"] = "Cerrar", ["Version"] = "Versión 1.0.0", ["DonateShort"] = "Donar",
         ["AppTagline"] = "Reproductor de música moderno y sencillo.",
         ["AboutStory"] = "Hecho por un músico, para escuchar música rápido y fácil, sin depender de sistemas complejos. Lo creé para escuchar mi disco antes de lanzarlo —como sonaría en las plataformas— y lo comparto para gente con la misma necesidad.",
         ["MadeBy"] = "Hecho con código y beats por", ["MadeByFrom"] = "desde Venezuela 🇻🇪",
@@ -530,9 +589,9 @@
         ["RepeatAll"] = "Repeat the playlist", ["RepeatOne"] = "Repeat this song", ["Mute"] = "Mute",
         ["Output"] = "Audio output", ["NoDevices"] = "No devices", ["SystemDefault"] = "System default",
         ["OutputUnsupported"] = "Your browser can't pick the output (use Chrome or Edge).",
-        ["MySongs"] = "My songs", ["NewPlaylistName"] = "New playlist",
+        ["MySongs"] = "My songs", ["NewPlaylistName"] = "New playlist", ["NowPlaying"] = "Now playing",
         ["SongOne"] = "1 song", ["SongMany"] = "{0} songs",
-        ["About"] = "About", ["Close"] = "Close", ["Version"] = "Version 1.0.0",
+        ["About"] = "About", ["Close"] = "Close", ["Version"] = "Version 1.0.0", ["DonateShort"] = "Donate",
         ["AppTagline"] = "A modern, simple music player.",
         ["AboutStory"] = "Made by a musician, to listen to music fast and easy, without relying on complex systems. I built it to hear my album before releasing it —how it would sound on the platforms— and I share it for people with the same need.",
         ["MadeBy"] = "Made with code and beats by", ["MadeByFrom"] = "from Venezuela 🇻🇪",

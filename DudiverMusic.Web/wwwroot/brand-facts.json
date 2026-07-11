@@ -1,0 +1,31 @@
+{
+  "name": "Dudiver Music",
+  "type": "WebApplication",
+  "category": "Reproductor de música / Music player",
+  "url": "https://app.music.dudiver.net",
+  "publisher": "Dudiver",
+  "founder": "Roberth Dudiver",
+  "country": "Venezuela",
+  "price": "Gratis / Free",
+  "oneLiner": "Reproductor de música online y gratis que reproduce los archivos de audio que ya tenés en tu dispositivo, sin subir nada ni crear cuenta.",
+  "description": "Dudiver Music es un reproductor de música web, de escritorio (Windows) y móvil. Arrastrás una carpeta o archivos de audio y suenan al instante: crea una playlist con el nombre de la carpeta, permite reordenar, renombrar y elegir el dispositivo de salida (audífonos o parlantes). No aloja ni distribuye música: solo reproduce archivos locales del usuario.",
+  "features": [
+    "Arrastrar carpeta o archivos y reproducir al instante",
+    "Crea playlists automáticamente por carpeta",
+    "Formatos: MP3, WAV, FLAC, M4A, AAC, OGG",
+    "Selección de dispositivo de salida (Chrome/Edge)",
+    "Aleatorio y repetir",
+    "Bilingüe (español / inglés)",
+    "Web, PC y celular"
+  ],
+  "platforms": ["Web", "Windows", "Android", "iOS", "macOS", "Linux"],
+  "languages": ["es", "en"],
+  "privacy": "No sube ni almacena archivos: la reproducción es 100% local en el dispositivo del usuario.",
+  "sameAs": [
+    "https://dudiver.net",
+    "https://instagram.com/dudivermusic",
+    "https://youtube.com/@Dudiver",
+    "https://tiktok.com/@dudivermusic",
+    "https://github.com/RoberthDudiver"
+  ]
+}
