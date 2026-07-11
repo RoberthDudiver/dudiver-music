@@ -150,6 +150,25 @@
                 else if (e.code === 'ArrowDown') k = 'voldown';
                 if (k) { e.preventDefault(); dotnet && dotnet.invokeMethodAsync('OnKey', k); }
             });
+
+            // Barra de progreso propia: click + arrastre (delegación global, sirve para todas las .seek2)
+            const seekFrac = (bar, clientX) => {
+                const r = bar.getBoundingClientRect();
+                return Math.min(1, Math.max(0, (clientX - r.left) / (r.width || 1)));
+            };
+            let seekBar = null;
+            const emitSeek = (clientX) => { if (seekBar && dotnet) dotnet.invokeMethodAsync('SeekFraction', seekFrac(seekBar, clientX)); };
+            document.addEventListener('pointerdown', (e) => {
+                const bar = e.target.closest && e.target.closest('.seek2');
+                if (!bar) return;
+                seekBar = bar; e.preventDefault();
+                try { bar.setPointerCapture(e.pointerId); } catch { }
+                emitSeek(e.clientX);
+            });
+            document.addEventListener('pointermove', (e) => { if (seekBar) emitSeek(e.clientX); });
+            const endSeek = () => { seekBar = null; };
+            document.addEventListener('pointerup', endSeek);
+            document.addEventListener('pointercancel', endSeek);
         },
 
         // Lee tags (título/artista/álbum) y guarda la carátula en IndexedDB. Devuelve metadatos.

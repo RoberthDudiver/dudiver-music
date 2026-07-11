@@ -2,6 +2,7 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 @using System.Text.Json
+@using System.Globalization
 
 <!-- Inputs reales de archivos: se disparan por <label for> (nativo, mantiene el gesto de usuario). -->
 <input id="dmFiles" type="file" multiple accept="audio/*,.mp3,.wav,.flac,.m4a,.aac,.ogg,.opus,.aiff"
@@ -182,8 +183,10 @@
             </div>
             <div class="seekrow">
                 <span class="time r">@Fmt(position)</span>
-                <input type="range" class="seek" min="0" max="@Math.Max(1, duration)" step="0.1"
-                       value="@position" @oninput="OnSeek" />
+                <div class="seek2" title="@T("Seek")">
+                    <div class="seek2-track"><div class="seek2-fill" style="width:@(SeekCss)%"></div></div>
+                    <div class="seek2-thumb" style="left:@(SeekCss)%"></div>
+                </div>
                 <span class="time">@Fmt(duration)</span>
             </div>
         </div>
@@ -212,13 +215,13 @@
                 </div>
             }
             <button class="icon-btn" title="@T("Mute")" @onclick="ToggleMute">@Ico(volume <= 0.001 ? "mute" : "volhigh")</button>
-            <input type="range" class="volume" min="0" max="1" step="0.02" value="@volume" @oninput="OnVolume" />
+            <input type="range" class="volume" min="0" max="1" step="0.02" value="@VolCss" @oninput="OnVolume" />
         </div>
     </footer>
 
     <!-- ===== Mini-player (mobile) — tap para pantalla completa ===== -->
     <div class="miniplayer" @onclick="() => npExpanded = true">
-        <div class="mp-seek"><div class="mp-fill" style="width:@SeekPct%"></div></div>
+        <div class="mp-seek"><div class="mp-fill" style="width:@(SeekCss)%"></div></div>
         <div class="mp-art @(isPlaying && currentArtUrl is null ? "spin" : "")"><img src="@(currentArtUrl ?? "logo.png")" alt="" /></div>
         <div class="mp-info">
             <div class="mp-t1">@(current?.Title ?? T("NothingPlaying"))</div>
@@ -249,8 +252,10 @@
             </div>
 
             <div class="npf-seek">
-                <input type="range" class="seek" min="0" max="@Math.Max(1, duration)" step="0.1"
-                       value="@position" @oninput="OnSeek" />
+                <div class="seek2" title="@T("Seek")">
+                    <div class="seek2-track"><div class="seek2-fill" style="width:@(SeekCss)%"></div></div>
+                    <div class="seek2-thumb" style="left:@(SeekCss)%"></div>
+                </div>
                 <div class="npf-times"><span>@Fmt(position)</span><span>@Fmt(duration)</span></div>
             </div>
 
@@ -333,6 +338,9 @@
     // Popups / dispositivos / drawer / full-screen
     bool showDevices, showLang, showAbout, outputUnsupported, showSidebar, npExpanded;
     double SeekPct => duration > 0 ? Math.Clamp(position / duration * 100, 0, 100) : 0;
+    // CSS invariante (la app puede correr en cultura con coma decimal → "18,4%" rompería el CSS/attr)
+    string SeekCss => SeekPct.ToString("0.###", CultureInfo.InvariantCulture);
+    string VolCss => volume.ToString("0.###", CultureInfo.InvariantCulture);
     List<AudioDeviceInfo> devices = new();
     string? currentDeviceName;
 
@@ -375,6 +383,16 @@
     }
     [JSInvokable] public void OnPlayState(bool playing) { isPlaying = playing; StateHasChanged(); }
     [JSInvokable] public void OnEnded() => _ = TrackFinished();
+
+    // Barra de progreso propia: JS envía la fracción (0..1) del click/arrastre.
+    [JSInvokable]
+    public async Task SeekFraction(double frac)
+    {
+        if (duration <= 0) return;
+        position = Math.Clamp(frac, 0, 1) * duration;
+        StateHasChanged();
+        await JS.InvokeVoidAsync("dudiverPlayer.seek", position);
+    }
 
     [JSInvokable]
     public async Task OnFilesDropped(PickedFile[] files)
@@ -792,7 +810,7 @@
         ["DropTitleMobile"] = "Elegí una carpeta o archivos de música",
         ["DropSubtitle"] = "Con una carpeta se crea una playlist con su nombre", ["ChooseFolder"] = "Elegir carpeta",
         ["ChooseFiles"] = "Elegir archivos", ["NothingPlaying"] = "Nada sonando", ["Shuffle"] = "Aleatorio",
-        ["Previous"] = "Anterior", ["Next"] = "Siguiente", ["RepeatOff"] = "Repetir: desactivado",
+        ["Previous"] = "Anterior", ["Next"] = "Siguiente", ["Seek"] = "Ir a…", ["RepeatOff"] = "Repetir: desactivado",
         ["RepeatAll"] = "Repetir la playlist", ["RepeatOne"] = "Repetir esta canción", ["Mute"] = "Silenciar",
         ["Output"] = "Salida de audio", ["NoDevices"] = "Sin dispositivos", ["SystemDefault"] = "Predeterminado del sistema",
         ["OutputUnsupported"] = "Tu navegador no permite elegir la salida (usá Chrome o Edge).",
@@ -820,7 +838,7 @@
         ["DropTitleMobile"] = "Pick a music folder or files",
         ["DropSubtitle"] = "A folder becomes a playlist with its name", ["ChooseFolder"] = "Choose folder",
         ["ChooseFiles"] = "Choose files", ["NothingPlaying"] = "Nothing playing", ["Shuffle"] = "Shuffle",
-        ["Previous"] = "Previous", ["Next"] = "Next", ["RepeatOff"] = "Repeat: off",
+        ["Previous"] = "Previous", ["Next"] = "Next", ["Seek"] = "Seek…", ["RepeatOff"] = "Repeat: off",
         ["RepeatAll"] = "Repeat the playlist", ["RepeatOne"] = "Repeat this song", ["Mute"] = "Mute",
         ["Output"] = "Audio output", ["NoDevices"] = "No devices", ["SystemDefault"] = "System default",
         ["OutputUnsupported"] = "Your browser can't pick the output (use Chrome or Edge).",
