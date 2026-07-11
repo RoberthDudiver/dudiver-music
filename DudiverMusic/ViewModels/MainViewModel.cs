@@ -1,7 +1,11 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Data;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DudiverMusic.Localization;
@@ -110,6 +114,67 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>La playlist que se está reproduciendo (puede diferir de la seleccionada).</summary>
     private PlaylistViewModel? _playingPlaylist;
+
+    // ===================== Buscador + duración + quitar =====================
+
+    /// <summary>Vista filtrada de las pistas de la playlist seleccionada.</summary>
+    public ICollectionView? VisibleTracks { get; private set; }
+
+    [ObservableProperty]
+    private string _searchText = "";
+
+    /// <summary>Solo se puede reordenar cuando no hay búsqueda activa.</summary>
+    public bool CanReorder => string.IsNullOrWhiteSpace(SearchText);
+
+    partial void OnSearchTextChanged(string value)
+    {
+        VisibleTracks?.Refresh();
+        OnPropertyChanged(nameof(CanReorder));
+    }
+
+    partial void OnSelectedPlaylistChanged(PlaylistViewModel? value)
+    {
+        _searchText = "";
+        OnPropertyChanged(nameof(SearchText));
+        VisibleTracks = value is null ? null : CollectionViewSource.GetDefaultView(value.Tracks);
+        if (VisibleTracks is not null) VisibleTracks.Filter = TrackFilter;
+        OnPropertyChanged(nameof(VisibleTracks));
+        OnPropertyChanged(nameof(CanReorder));
+        _ = LoadDurationsAsync(value);
+    }
+
+    private bool TrackFilter(object o) =>
+        o is TrackViewModel t && (string.IsNullOrWhiteSpace(SearchText)
+            || t.Title.Contains(SearchText.Trim(), StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>Lee la duración de cada archivo en segundo plano (NAudio) y la persiste.</summary>
+    private async Task LoadDurationsAsync(PlaylistViewModel? pl)
+    {
+        if (pl is null) return;
+        var toRead = pl.Tracks.Where(t => t.Model.DurationSeconds <= 0).ToList();
+        if (toRead.Count == 0) return;
+
+        await Task.Run(() =>
+        {
+            bool any = false;
+            foreach (var t in toRead)
+            {
+                double dur = 0;
+                try { using var r = new NAudio.Wave.MediaFoundationReader(t.FilePath); dur = r.TotalTime.TotalSeconds; }
+                catch { }
+                if (dur > 0) { any = true; Application.Current?.Dispatcher.Invoke(() => t.SetDuration(dur)); }
+            }
+            if (any) Application.Current?.Dispatcher.Invoke(() => { pl.RaiseMeta(); Persist(); });
+        });
+    }
+
+    [RelayCommand]
+    private void RemoveTrack(TrackViewModel? t)
+    {
+        if (t is null || SelectedPlaylist is null) return;
+        SelectedPlaylist.RemoveTrack(t);
+        Persist();
+    }
 
     // ===================== Estado de reproducción =====================
 

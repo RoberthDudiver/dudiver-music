@@ -14,6 +14,16 @@ public sealed class InverseBoolToVisibilityConverter : IValueConverter
         value is Visibility v && v != Visibility.Visible;
 }
 
+/// <summary>String vacío/nulo → Visible (para watermarks/placeholders).</summary>
+public sealed class EmptyStringToVisibilityConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object parameter, CultureInfo culture) =>
+        string.IsNullOrEmpty(value as string) ? Visibility.Visible : Visibility.Collapsed;
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) =>
+        throw new NotSupportedException();
+}
+
 /// <summary>Objeto no nulo → Visible, nulo → Collapsed.</summary>
 public sealed class NullToVisibilityConverter : IValueConverter
 {

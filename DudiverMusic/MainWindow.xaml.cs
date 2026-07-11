@@ -1,7 +1,9 @@
+using System;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using Microsoft.Win32;
 using DudiverMusic.ViewModels;
 
@@ -33,12 +35,75 @@ public partial class MainWindow : Window
 
     private void OnDevicePopupOpen(object sender, RoutedEventArgs e) => _vm.RefreshDevices();
 
-    // ===================== Reproducir canción =====================
+    // ===================== Reproducir / reordenar canciones =====================
 
-    private void OnTrackClick(object sender, MouseButtonEventArgs e)
+    private Point _dragStart;
+    private TrackViewModel? _pressItem;
+    private bool _dragging;
+
+    private void OnTrackListMouseDown(object sender, MouseButtonEventArgs e)
     {
-        if (sender is FrameworkElement { DataContext: TrackViewModel track })
-            _vm.PlayTrackCommand.Execute(track);
+        _dragging = false;
+        if (IsInButton(e.OriginalSource)) { _pressItem = null; return; }
+        _dragStart = e.GetPosition(TrackList);
+        _pressItem = ItemUnder(e.OriginalSource);
+    }
+
+    private void OnTrackListMouseMove(object sender, MouseEventArgs e)
+    {
+        if (_dragging || _pressItem is null || e.LeftButton != MouseButtonState.Pressed || !_vm.CanReorder) return;
+        var p = e.GetPosition(TrackList);
+        if (Math.Abs(p.X - _dragStart.X) < SystemParameters.MinimumHorizontalDragDistance &&
+            Math.Abs(p.Y - _dragStart.Y) < SystemParameters.MinimumVerticalDragDistance) return;
+
+        _dragging = true;
+        DragDrop.DoDragDrop(TrackList, _pressItem, DragDropEffects.Move);
+        _pressItem = null;   // consumido por el drag
+    }
+
+    private void OnTrackListMouseUp(object sender, MouseButtonEventArgs e)
+    {
+        if (!_dragging && _pressItem is not null)
+            _vm.PlayTrackCommand.Execute(_pressItem);
+        _pressItem = null;
+    }
+
+    private void OnTrackListDrop(object sender, DragEventArgs e)
+    {
+        if (!_vm.CanReorder || _vm.SelectedPlaylist is not { } pl) return;
+        if (e.Data.GetData(typeof(TrackViewModel)) is not TrackViewModel dragged) return;
+        var target = ItemUnder(e.OriginalSource);
+        if (target is null || target == dragged) return;
+        pl.MoveTrack(pl.Tracks.IndexOf(dragged), pl.Tracks.IndexOf(target));
+        _vm.Persist();
+    }
+
+    private void OnDeletePlaylist(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: PlaylistViewModel pl })
+        {
+            var msg = string.Format(Localization.LocalizationManager.Tr("DeleteText"), pl.Name);
+            if (Views.ConfirmDialog.Show(Localization.LocalizationManager.Tr("DeleteTitle"), msg))
+                _vm.RemovePlaylistCommand.Execute(pl);
+        }
+    }
+
+    private static TrackViewModel? ItemUnder(object? source)
+    {
+        var d = source as DependencyObject;
+        while (d is not null and not ListBoxItem) d = VisualTreeHelper.GetParent(d);
+        return (d as ListBoxItem)?.DataContext as TrackViewModel;
+    }
+
+    private static bool IsInButton(object? source)
+    {
+        var d = source as DependencyObject;
+        while (d is not null and not ListBoxItem)
+        {
+            if (d is Button) return true;
+            d = VisualTreeHelper.GetParent(d);
+        }
+        return false;
     }
 
     // ===================== Drag & drop de carpetas =====================

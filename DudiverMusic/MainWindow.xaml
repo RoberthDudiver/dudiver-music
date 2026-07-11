@@ -24,6 +24,7 @@
     <Window.Resources>
         <conv:InverseBoolToVisibilityConverter x:Key="InvBoolVis" />
         <conv:NullToVisibilityConverter x:Key="NullVis" />
+        <conv:EmptyStringToVisibilityConverter x:Key="EmptyVis" />
         <BooleanToVisibilityConverter x:Key="BoolVis" />
 
         <!-- ===== Item de PLAYLIST (sidebar) ===== -->
@@ -72,8 +73,7 @@
                                             CommandParameter="{Binding}" />
                                     <Button Width="30" Height="30" FontSize="13" Style="{StaticResource IconButton}"
                                             Content="&#xE74D;" ToolTip="{loc:Tr TipDeletePlaylist}"
-                                            Command="{Binding DataContext.RemovePlaylistCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                            CommandParameter="{Binding}" />
+                                            Tag="{Binding}" Click="OnDeletePlaylist" />
                                 </StackPanel>
                             </Grid>
                         </Border>
@@ -127,13 +127,13 @@
                                                  From="5" To="15" />
                             </Storyboard>
                         </ControlTemplate.Resources>
-                        <Border x:Name="bd" CornerRadius="8" Background="Transparent" Padding="14,10"
-                                MouseLeftButtonDown="OnTrackClick">
+                        <Border x:Name="bd" CornerRadius="8" Background="Transparent" Padding="14,10">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="26" />
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="30" />
                                 </Grid.ColumnDefinitions>
 
                                 <!-- Indicador: play al hover, ecualizador animado si suena -->
@@ -174,12 +174,19 @@
 
                                 <TextBlock Grid.Column="2" Text="{Binding DurationText}" FontSize="12.5"
                                            Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center" />
+
+                                <Button x:Name="removeBtn" Grid.Column="3" Width="26" Height="26" FontSize="12"
+                                        Style="{StaticResource IconButton}" Content="&#xE711;" Opacity="0"
+                                        Margin="6,0,0,0" ToolTip="{loc:Tr RemoveTrack}"
+                                        Command="{Binding DataContext.RemoveTrackCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                        CommandParameter="{Binding}" />
                             </Grid>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="bd" Property="Background" Value="{DynamicResource BgElevated}" />
                                 <Setter TargetName="hoverPlay" Property="Opacity" Value="1" />
+                                <Setter TargetName="removeBtn" Property="Opacity" Value="1" />
                             </Trigger>
                             <DataTrigger Binding="{Binding IsCurrent}" Value="True">
                                 <Setter TargetName="title" Property="Foreground" Value="{DynamicResource Cyan}" />
@@ -370,23 +377,56 @@
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
-                    <!-- Encabezado -->
-                    <StackPanel Grid.Row="0" Margin="0,0,0,16"
-                                DataContext="{Binding SelectedPlaylist}">
-                        <TextBlock Text="{loc:Tr PlaylistEyebrow}" FontSize="11" FontWeight="Bold"
-                                   Foreground="{DynamicResource Magenta}" />
-                        <TextBlock Text="{Binding Name}" FontSize="30" FontWeight="Bold"
-                                   Margin="0,2,0,0" TextTrimming="CharacterEllipsis"
-                                   FontFamily="Segoe UI Variable Display, Segoe UI" />
-                        <TextBlock Text="{Binding TrackCountText}" FontSize="13"
-                                   Foreground="{DynamicResource TextMuted}" Margin="0,4,0,0" />
-                    </StackPanel>
+                    <!-- Encabezado + buscador -->
+                    <Grid Grid.Row="0" Margin="0,0,0,14">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
 
-                    <!-- Lista de canciones -->
+                        <StackPanel Grid.Column="0" VerticalAlignment="Center"
+                                    DataContext="{Binding SelectedPlaylist}">
+                            <TextBlock Text="{loc:Tr PlaylistEyebrow}" FontSize="11" FontWeight="Bold"
+                                       Foreground="{DynamicResource Magenta}" />
+                            <TextBlock Text="{Binding Name}" FontSize="30" FontWeight="Bold"
+                                       Margin="0,2,0,0" TextTrimming="CharacterEllipsis"
+                                       FontFamily="Segoe UI Variable Display, Segoe UI" />
+                            <TextBlock Text="{Binding MetaText}" FontSize="13"
+                                       Foreground="{DynamicResource TextMuted}" Margin="0,4,0,0" />
+                        </StackPanel>
+
+                        <Border Grid.Column="1" VerticalAlignment="Bottom" Height="38" Width="240"
+                                CornerRadius="19" Background="{DynamicResource BgElevated}"
+                                BorderBrush="{DynamicResource Stroke}" BorderThickness="1" Padding="12,0,10,0">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" FontFamily="Segoe MDL2 Assets" Text="&#xE721;" FontSize="14"
+                                           Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center" />
+                                <Grid Grid.Column="1" Margin="8,0,0,0">
+                                    <TextBlock Text="{loc:Tr SearchPh}" Foreground="{DynamicResource TextFaint}"
+                                               FontSize="13" VerticalAlignment="Center" IsHitTestVisible="False"
+                                               Visibility="{Binding SearchText, Converter={StaticResource EmptyVis}}" />
+                                    <TextBox x:Name="SearchBox" Background="Transparent" BorderThickness="0"
+                                             Foreground="{DynamicResource Text}" CaretBrush="{DynamicResource Cyan}"
+                                             FontSize="13" VerticalAlignment="Center"
+                                             Text="{Binding SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                </Grid>
+                            </Grid>
+                        </Border>
+                    </Grid>
+
+                    <!-- Lista de canciones (reordenable por drag) -->
                     <ListBox Grid.Row="1" x:Name="TrackList"
-                             ItemsSource="{Binding SelectedPlaylist.Tracks}"
+                             ItemsSource="{Binding VisibleTracks}"
                              ItemContainerStyle="{StaticResource TrackItem}"
-                             Background="Transparent" BorderThickness="0"
+                             Background="Transparent" BorderThickness="0" AllowDrop="True"
+                             PreviewMouseLeftButtonDown="OnTrackListMouseDown"
+                             PreviewMouseMove="OnTrackListMouseMove"
+                             PreviewMouseLeftButtonUp="OnTrackListMouseUp"
+                             Drop="OnTrackListDrop"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled" />
                 </Grid>
 
