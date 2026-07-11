@@ -4,6 +4,8 @@ public sealed class Track
 {
     public required string Id { get; init; }     // id en el registro JS
     public required string Title { get; set; }
+    public string? Artist { get; set; }
+    public string? Album { get; set; }
     public double DurationSeconds { get; set; }
 
     public string DurationText => DurationSeconds > 0

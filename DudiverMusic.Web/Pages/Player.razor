@@ -163,7 +163,7 @@
     <footer class="now">
         <div class="np">
             <div class="t1">@(current?.Title ?? T("NothingPlaying"))</div>
-            <div class="t2">@(playingList?.Name ?? "")</div>
+            <div class="t2">@NowSubtitle</div>
         </div>
 
         <div class="center">
@@ -219,10 +219,10 @@
     <!-- ===== Mini-player (mobile) — tap para pantalla completa ===== -->
     <div class="miniplayer" @onclick="() => npExpanded = true">
         <div class="mp-seek"><div class="mp-fill" style="width:@SeekPct%"></div></div>
-        <div class="mp-art @(isPlaying ? "spin" : "")"><img src="logo.png" alt="" /></div>
+        <div class="mp-art @(isPlaying && currentArtUrl is null ? "spin" : "")"><img src="@(currentArtUrl ?? "logo.png")" alt="" /></div>
         <div class="mp-info">
             <div class="mp-t1">@(current?.Title ?? T("NothingPlaying"))</div>
-            <div class="mp-t2">@(playingList?.Name ?? "")</div>
+            <div class="mp-t2">@NowSubtitle</div>
         </div>
         <button class="icon-btn" @onclick:stopPropagation="true" @onclick="TogglePlay">@Ico(isPlaying ? "pause" : "play")</button>
         <button class="icon-btn" @onclick:stopPropagation="true" @onclick="Next">@Ico("next")</button>
@@ -238,14 +238,14 @@
                 <button class="chip @(currentDeviceName is not null ? "on" : "")" title="@T("Output")" @onclick="OpenOutput">@Ico("speaker")</button>
             </div>
 
-            <div class="npf-art @(isPlaying ? "spin" : "")">
+            <div class="npf-art @(isPlaying && currentArtUrl is null ? "spin" : "") @(currentArtUrl is not null ? "hasart" : "")">
                 <div class="npf-glow"></div>
-                <img src="logo.png" alt="Dudiver Music" />
+                <img src="@(currentArtUrl ?? "logo.png")" alt="Dudiver Music" />
             </div>
 
             <div class="npf-meta">
                 <div class="npf-title">@(current?.Title ?? T("NothingPlaying"))</div>
-                <div class="npf-sub">@(playingList?.Name ?? "")</div>
+                <div class="npf-sub">@NowSubtitle</div>
             </div>
 
             <div class="npf-seek">
@@ -403,6 +403,7 @@
         StateHasChanged();
         await Persist();
         _ = LoadDurations(tracks);   // en segundo plano
+        _ = LoadTags(tracks);        // artista/álbum/carátula en segundo plano
     }
 
     // ===== Duraciones (en segundo plano) =====
@@ -422,6 +423,28 @@
         catch { }
     }
 
+    // ===== Tags ID3 (artista/álbum/carátula) en segundo plano =====
+    async Task LoadTags(List<Track> tracks)
+    {
+        var pending = tracks.Where(t => string.IsNullOrEmpty(t.Artist)).ToList();
+        if (pending.Count == 0) return;
+        try
+        {
+            var tags = await JS.InvokeAsync<TagDto[]>("dudiverPlayer.getTags", pending.Select(t => t.Id).ToArray());
+            var map = tracks.ToDictionary(t => t.Id);
+            bool changed = false;
+            foreach (var tag in tags)
+            {
+                if (!map.TryGetValue(tag.Id, out var tr)) continue;
+                if (!string.IsNullOrWhiteSpace(tag.Artist)) { tr.Artist = tag.Artist; changed = true; }
+                if (!string.IsNullOrWhiteSpace(tag.Album)) { tr.Album = tag.Album; changed = true; }
+            }
+            if (changed) { StateHasChanged(); await Persist(); }
+            if (current is not null && tracks.Contains(current)) await UpdateNowPlaying();
+        }
+        catch { }
+    }
+
     // ===== Persistencia (IndexedDB) =====
     bool _loading;
 
@@ -430,7 +453,7 @@
         if (_loading || !jsReady) return;
         var data = playlists.Select(p => new PlDto(
             p.Id, p.Name,
-            p.Tracks.Select(t => new TrDto(t.Id, t.Title, t.DurationSeconds)).ToList())).ToList();
+            p.Tracks.Select(t => new TrDto(t.Id, t.Title, t.DurationSeconds, t.Artist, t.Album)).ToList())).ToList();
         try { await JS.InvokeVoidAsync("dudiverPlayer.savePlaylists", JsonSerializer.Serialize(data)); } catch { }
     }
 
@@ -449,7 +472,7 @@
                     {
                         Id = p.Id,
                         Name = p.Name,
-                        Tracks = p.Tracks.Select(t => new Track { Id = t.Id, Title = t.Title, DurationSeconds = t.Dur }).ToList()
+                        Tracks = p.Tracks.Select(t => new Track { Id = t.Id, Title = t.Title, DurationSeconds = t.Dur, Artist = t.Artist, Album = t.Album }).ToList()
                     }).ToList();
                     selected = playlists.FirstOrDefault();
                 }
@@ -460,19 +483,62 @@
     }
 
     record PlDto(string Id, string Name, List<TrDto> Tracks);
-    record TrDto(string Id, string Title, double Dur);
+    record TrDto(string Id, string Title, double Dur, string? Artist, string? Album);
     record DurDto(string Id, double Dur);
+    record TagDto(string Id, string Title, string Artist, string Album, bool HasArt);
 
     // ===== Reproducción =====
+    string? currentArtUrl;
+    string NowSubtitle => current?.Artist ?? playingList?.Name ?? "";
+
     async Task PlayTrack(Playlist pl, Track t)
     {
         playingList = pl;
-        if (current is not null) { } // limpieza visual la maneja el binding
         current = t;
         position = 0; duration = t.DurationSeconds;
         await JS.InvokeVoidAsync("dudiverPlayer.play", t.Id);
         isPlaying = true;
         StateHasChanged();
+        await UpdateNowPlaying();
+    }
+
+    // Carátula + metadatos del SO para la canción actual.
+    async Task UpdateNowPlaying()
+    {
+        if (current is null) return;
+        try
+        {
+            currentArtUrl = await JS.InvokeAsync<string?>("dudiverPlayer.getArtUrl", current.Id);
+            await JS.InvokeVoidAsync("dudiverPlayer.setNowPlaying",
+                current.Title, current.Artist ?? "", current.Album ?? "", currentArtUrl);
+            StateHasChanged();
+        }
+        catch { }
+    }
+
+    // ===== Media Session (controles del SO) + atajos de teclado =====
+    [JSInvokable]
+    public async Task OnMediaAction(string action)
+    {
+        switch (action)
+        {
+            case "play": case "pause": await TogglePlay(); break;
+            case "next": await Next(); break;
+            case "prev": await Previous(); break;
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnKey(string k)
+    {
+        switch (k)
+        {
+            case "space": await TogglePlay(); break;
+            case "right": if (duration > 0) { position = Math.Min(duration, position + 5); await JS.InvokeVoidAsync("dudiverPlayer.seek", position); } break;
+            case "left": position = Math.Max(0, position - 5); await JS.InvokeVoidAsync("dudiverPlayer.seek", position); break;
+            case "volup": volume = Math.Min(1, volume + 0.05); await JS.InvokeVoidAsync("dudiverPlayer.setVolume", volume); StateHasChanged(); break;
+            case "voldown": volume = Math.Max(0, volume - 0.05); await JS.InvokeVoidAsync("dudiverPlayer.setVolume", volume); StateHasChanged(); break;
+        }
     }
 
     async Task TogglePlay()

@@ -45,8 +45,14 @@
         audio.addEventListener('timeupdate', () => dotnet && dotnet.invokeMethodAsync('OnTime', audio.currentTime || 0));
         audio.addEventListener('loadedmetadata', () => dotnet && dotnet.invokeMethodAsync('OnLoaded', audio.duration || 0));
         audio.addEventListener('ended', () => dotnet && dotnet.invokeMethodAsync('OnEnded'));
-        audio.addEventListener('play', () => dotnet && dotnet.invokeMethodAsync('OnPlayState', true));
-        audio.addEventListener('pause', () => dotnet && dotnet.invokeMethodAsync('OnPlayState', false));
+        audio.addEventListener('play', () => {
+            if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
+            dotnet && dotnet.invokeMethodAsync('OnPlayState', true);
+        });
+        audio.addEventListener('pause', () => {
+            if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
+            dotnet && dotnet.invokeMethodAsync('OnPlayState', false);
+        });
         audio.addEventListener('error', () => dotnet && dotnet.invokeMethodAsync('OnEnded'));
         return audio;
     }
@@ -88,6 +94,26 @@
         }
     }
 
+    function readTags(blob) {
+        return new Promise((resolve) => {
+            if (!window.jsmediatags) return resolve(null);
+            try {
+                window.jsmediatags.read(blob, {
+                    onSuccess: (r) => {
+                        const t = (r && r.tags) || {};
+                        let picBlob = null;
+                        if (t.picture && t.picture.data) {
+                            try { picBlob = new Blob([new Uint8Array(t.picture.data)], { type: t.picture.format || 'image/jpeg' }); }
+                            catch { }
+                        }
+                        resolve({ title: t.title || '', artist: t.artist || '', album: t.album || '', picBlob });
+                    },
+                    onError: () => resolve(null)
+                });
+            } catch { resolve(null); }
+        });
+    }
+
     function readDuration(blob) {
         return new Promise((resolve) => {
             const url = URL.createObjectURL(blob);
@@ -100,7 +126,59 @@
     }
 
     window.dudiverPlayer = {
-        init(ref) { dotnet = ref; ensureAudio(); },
+        init(ref) {
+            dotnet = ref;
+            ensureAudio();
+            // Media Session (controles del SO / pantalla de bloqueo / teclas multimedia)
+            if ('mediaSession' in navigator) {
+                const set = (a, fn) => { try { navigator.mediaSession.setActionHandler(a, fn); } catch { } };
+                set('play', () => dotnet.invokeMethodAsync('OnMediaAction', 'play'));
+                set('pause', () => dotnet.invokeMethodAsync('OnMediaAction', 'pause'));
+                set('nexttrack', () => dotnet.invokeMethodAsync('OnMediaAction', 'next'));
+                set('previoustrack', () => dotnet.invokeMethodAsync('OnMediaAction', 'prev'));
+                set('seekto', (d) => { if (audio && d.seekTime != null) audio.currentTime = d.seekTime; });
+            }
+            // Atajos de teclado
+            document.addEventListener('keydown', (e) => {
+                const tag = e.target && e.target.tagName;
+                if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+                let k = null;
+                if (e.code === 'Space') k = 'space';
+                else if (e.code === 'ArrowRight') k = 'right';
+                else if (e.code === 'ArrowLeft') k = 'left';
+                else if (e.code === 'ArrowUp') k = 'volup';
+                else if (e.code === 'ArrowDown') k = 'voldown';
+                if (k) { e.preventDefault(); dotnet && dotnet.invokeMethodAsync('OnKey', k); }
+            });
+        },
+
+        // Lee tags (título/artista/álbum) y guarda la carátula en IndexedDB. Devuelve metadatos.
+        async getTags(ids) {
+            const out = [];
+            for (const id of ids) {
+                const b = await getBlob(id);
+                if (!b) { out.push({ id, title: '', artist: '', album: '', hasArt: false }); continue; }
+                const t = await readTags(b);
+                if (t && t.picBlob) { try { await idbPut('blobs', 'art:' + id, t.picBlob); } catch { } }
+                out.push({ id, title: t?.title || '', artist: t?.artist || '', album: t?.album || '', hasArt: !!(t && t.picBlob) });
+            }
+            return out;
+        },
+        async getArtUrl(id) {
+            try { const b = await idbGet('blobs', 'art:' + id); return b ? URL.createObjectURL(b) : null; }
+            catch { return null; }
+        },
+        setNowPlaying(title, artist, album, artUrl) {
+            if (!('mediaSession' in navigator)) return;
+            try {
+                const artwork = artUrl
+                    ? [{ src: artUrl, sizes: '512x512', type: 'image/jpeg' }]
+                    : [{ src: location.origin + '/icon-192.png', sizes: '192x192', type: 'image/png' }];
+                navigator.mediaSession.metadata = new MediaMetadata({
+                    title: title || 'Dudiver Music', artist: artist || '', album: album || '', artwork
+                });
+            } catch { }
+        },
 
         async onInputChange(input, isFolder) {
             const list = await register(input.files || []);

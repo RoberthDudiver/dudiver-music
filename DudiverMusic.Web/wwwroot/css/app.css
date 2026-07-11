@@ -238,6 +238,8 @@ label.ghost, label.pill { cursor: pointer; }
 .npf-art img { width: 90%; height: 90%; object-fit: contain; position: relative;
     filter: drop-shadow(0 0 30px rgba(168, 85, 247, .5)); }
 .npf-art.spin img { animation: spin 16s linear infinite; }
+.npf-art.hasart img { width: 100%; height: 100%; object-fit: cover; border-radius: 16px; filter: none;
+    box-shadow: 0 14px 44px rgba(0, 0, 0, .55), 0 0 44px rgba(168, 85, 247, .28); }
 .npf-meta { text-align: center; width: 100%; }
 .npf-title { font-size: 21px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .npf-sub { font-size: 13.5px; color: var(--muted); margin-top: 4px; }
