@@ -53,7 +53,7 @@
                 </div>
             </div>
             <div class="add-row">
-                <label class="ghost" for="dmFolder" title="@T("TipAddFolder")">@Ico("folder") @T("Folder")</label>
+                <label class="ghost pick-folder" for="dmFolder" title="@T("TipAddFolder")">@Ico("folder") @T("Folder")</label>
                 <label class="ghost" for="dmFiles" title="@T("TipAddFiles")">@Ico("music") @T("Files")</label>
             </div>
             <div class="playlists">
@@ -149,7 +149,7 @@
                         <h3><span class="only-desktop">@T("DropTitle")</span><span class="only-mobile">@T("DropTitleMobile")</span></h3>
                         <p>@T("DropSubtitle")</p>
                         <div class="btns">
-                            <label class="pill" for="dmFolder">@T("ChooseFolder")</label>
+                            <label class="pill pick-folder" for="dmFolder">@T("ChooseFolder")</label>
                             <label class="ghost" style="height:40px;padding:0 18px" for="dmFiles">@T("ChooseFiles")</label>
                         </div>
                         <div class="formats">MP3 · WAV · FLAC · M4A · AAC · OGG</div>
@@ -365,8 +365,14 @@
     }
 
     // ===== Callbacks desde JS =====
-    [JSInvokable] public void OnTime(double t) { position = t; StateHasChanged(); }
-    [JSInvokable] public void OnLoaded(double d) { duration = d; if (current is not null) current.DurationSeconds = d; StateHasChanged(); }
+    [JSInvokable] public void OnTime(double t) { position = double.IsFinite(t) ? t : 0; StateHasChanged(); }
+    [JSInvokable] public void OnLoaded(double d)
+    {
+        // MP3 VBR pueden reportar Infinity/NaN → usar la duración ya leída del archivo.
+        duration = double.IsFinite(d) && d > 0 ? d : (current?.DurationSeconds ?? 0);
+        if (current is not null && double.IsFinite(d) && d > 0) current.DurationSeconds = d;
+        StateHasChanged();
+    }
     [JSInvokable] public void OnPlayState(bool playing) { isPlaying = playing; StateHasChanged(); }
     [JSInvokable] public void OnEnded() => _ = TrackFinished();
 
@@ -737,7 +743,7 @@
 
     static string Fmt(double s)
     {
-        if (s <= 0 || double.IsNaN(s)) return "0:00";
+        if (!double.IsFinite(s) || s <= 0) return "0:00";
         var ts = TimeSpan.FromSeconds(s);
         return ts.TotalHours >= 1 ? ts.ToString(@"h\:mm\:ss") : ts.ToString(@"m\:ss");
     }

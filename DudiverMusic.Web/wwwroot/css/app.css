@@ -359,6 +359,10 @@ input[type=range]::-moz-range-progress { background: var(--brand-h); height: 4px
     .only-desktop { display: none; }
     .only-mobile { display: inline; }
 
+    /* Elegir carpeta no anda confiable en mobile (iOS lo bloquea "por seguridad") */
+    .pick-folder { display: none !important; }
+    .add-row { grid-template-columns: 1fr; }
+
     /* Popups (idioma / salida) full-width abajo del header */
     .topbar-actions .pop { right: 8px; }
     .modal { padding: 26px 20px 22px; }
