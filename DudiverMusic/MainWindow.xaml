@@ -472,13 +472,21 @@
                     <ColumnDefinition Width="*" MinWidth="150" />
                 </Grid.ColumnDefinitions>
 
-                <!-- Info de la canción actual -->
-                <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                    <TextBlock Text="{Binding NowPlayingTitle}"
-                               FontSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-                    <TextBlock Text="{Binding SelectedPlaylist.Name}" FontSize="12"
-                               Foreground="{DynamicResource TextMuted}" TextTrimming="CharacterEllipsis"
-                               Margin="0,2,0,0" />
+                <!-- Info de la canción actual (carátula + título + artista) -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border Width="46" Height="46" CornerRadius="8" Margin="0,0,12,0"
+                            Visibility="{Binding CurrentArt, Converter={StaticResource NullVis}}">
+                        <Border.Background>
+                            <ImageBrush ImageSource="{Binding CurrentArt}" Stretch="UniformToFill" />
+                        </Border.Background>
+                    </Border>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="{Binding NowPlayingTitle}"
+                                   FontSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding NowPlayingSubtitle}" FontSize="12"
+                                   Foreground="{DynamicResource TextMuted}" TextTrimming="CharacterEllipsis"
+                                   Margin="0,2,0,0" />
+                    </StackPanel>
                 </StackPanel>
 
                 <!-- Controles + seek -->

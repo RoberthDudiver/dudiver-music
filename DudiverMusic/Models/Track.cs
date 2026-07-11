@@ -10,6 +10,9 @@ public sealed class Track
     /// <summary>Título mostrado (por defecto, el nombre del archivo sin extensión).</summary>
     public string Title { get; set; } = "";
 
+    public string? Artist { get; set; }
+    public string? Album { get; set; }
+
     /// <summary>Duración en segundos (0 si aún no se leyó).</summary>
     public double DurationSeconds { get; set; }
 

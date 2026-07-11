@@ -100,8 +100,57 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public string NowPlayingTitle =>
         CurrentTrack?.Title ?? LocalizationManager.Tr("NothingPlaying");
 
-    partial void OnCurrentTrackChanged(TrackViewModel? value) =>
+    /// <summary>Subtítulo: artista si hay tag, si no el nombre de la playlist.</summary>
+    public string NowPlayingSubtitle =>
+        CurrentTrack?.Model.Artist ?? _playingPlaylist?.Name ?? "";
+
+    /// <summary>Carátula del álbum de la canción actual (si el archivo la tiene).</summary>
+    [ObservableProperty]
+    private System.Windows.Media.ImageSource? _currentArt;
+
+    partial void OnCurrentTrackChanged(TrackViewModel? value)
+    {
         OnPropertyChanged(nameof(NowPlayingTitle));
+        OnPropertyChanged(nameof(NowPlayingSubtitle));
+        LoadArt(value);
+    }
+
+    /// <summary>Lee la carátula embebida del archivo en segundo plano.</summary>
+    private void LoadArt(TrackViewModel? track)
+    {
+        CurrentArt = null;
+        if (track is null) return;
+        var path = track.FilePath;
+        Task.Run(() =>
+        {
+            byte[]? bytes = null;
+            try
+            {
+                using var tf = TagLib.File.Create(path);
+                if (tf.Tag.Pictures.Length > 0) bytes = tf.Tag.Pictures[0].Data.Data;
+            }
+            catch { }
+            if (bytes is null || bytes.Length == 0) return;
+
+            Application.Current?.Dispatcher.Invoke(() =>
+            {
+                // Solo aplicar si sigue siendo la canción actual.
+                if (CurrentTrack != track) return;
+                try
+                {
+                    var bi = new System.Windows.Media.Imaging.BitmapImage();
+                    using var ms = new MemoryStream(bytes);
+                    bi.BeginInit();
+                    bi.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+                    bi.StreamSource = ms;
+                    bi.EndInit();
+                    bi.Freeze();
+                    CurrentArt = bi;
+                }
+                catch { }
+            });
+        });
+    }
 
     // ===================== Biblioteca =====================
 
@@ -147,11 +196,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
         o is TrackViewModel t && (string.IsNullOrWhiteSpace(SearchText)
             || t.Title.Contains(SearchText.Trim(), StringComparison.OrdinalIgnoreCase));
 
-    /// <summary>Lee la duración de cada archivo en segundo plano (NAudio) y la persiste.</summary>
+    /// <summary>Lee duración + tags (artista/álbum) de cada archivo en segundo plano y persiste.</summary>
     private async Task LoadDurationsAsync(PlaylistViewModel? pl)
     {
         if (pl is null) return;
-        var toRead = pl.Tracks.Where(t => t.Model.DurationSeconds <= 0).ToList();
+        var toRead = pl.Tracks.Where(t => t.Model.DurationSeconds <= 0 || string.IsNullOrEmpty(t.Model.Artist)).ToList();
         if (toRead.Count == 0) return;
 
         await Task.Run(() =>
@@ -159,10 +208,33 @@ public partial class MainViewModel : ObservableObject, IDisposable
             bool any = false;
             foreach (var t in toRead)
             {
-                double dur = 0;
-                try { using var r = new NAudio.Wave.MediaFoundationReader(t.FilePath); dur = r.TotalTime.TotalSeconds; }
-                catch { }
-                if (dur > 0) { any = true; Application.Current?.Dispatcher.Invoke(() => t.SetDuration(dur)); }
+                double dur = t.Model.DurationSeconds;
+                string? artist = null, album = null;
+                try
+                {
+                    using var tf = TagLib.File.Create(t.FilePath);
+                    if (dur <= 0) dur = tf.Properties.Duration.TotalSeconds;
+                    artist = tf.Tag.FirstPerformer ?? tf.Tag.JoinedPerformers;
+                    album = tf.Tag.Album;
+                }
+                catch
+                {
+                    if (dur <= 0)
+                        try { using var r = new NAudio.Wave.MediaFoundationReader(t.FilePath); dur = r.TotalTime.TotalSeconds; }
+                        catch { }
+                }
+
+                double fdur = dur; string? fartist = artist, falbum = album;
+                if (fdur > 0 || !string.IsNullOrEmpty(fartist))
+                {
+                    any = true;
+                    Application.Current?.Dispatcher.Invoke(() =>
+                    {
+                        if (fdur > 0) t.SetDuration(fdur);
+                        t.SetTags(fartist, falbum);
+                        if (t == CurrentTrack) OnPropertyChanged(nameof(NowPlayingSubtitle));
+                    });
+                }
             }
             if (any) Application.Current?.Dispatcher.Invoke(() => { pl.RaiseMeta(); Persist(); });
         });

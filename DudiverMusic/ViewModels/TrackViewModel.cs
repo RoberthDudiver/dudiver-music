@@ -31,9 +31,18 @@ public partial class TrackViewModel : ObservableObject
 
     partial void OnTitleChanged(string value) => Model.Title = value;
 
+    public string? Artist => Model.Artist;
+
     public void SetDuration(double seconds)
     {
         Model.DurationSeconds = seconds;
         OnPropertyChanged(nameof(DurationText));
+    }
+
+    public void SetTags(string? artist, string? album)
+    {
+        Model.Artist = string.IsNullOrWhiteSpace(artist) ? Model.Artist : artist;
+        Model.Album = string.IsNullOrWhiteSpace(album) ? Model.Album : album;
+        OnPropertyChanged(nameof(Artist));
     }
 }
