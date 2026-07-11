@@ -87,6 +87,11 @@ public sealed class LocalizationManager : INotifyPropertyChanged
         ["MadeByFrom"] = "desde Venezuela 🇻🇪",
         ["LicenseHeader"] = "LICENCIA",
         ["LicenseText"] = "Gratis para uso personal y profesional. No puede ser vendido ni redistribuido con fines de lucro. No elimines los créditos del autor.",
+        ["AboutStory"] = "Hecho por un músico, para escuchar música rápido y fácil, sin depender de sistemas complejos. Lo creé para escuchar mi disco antes de lanzarlo —como sonaría en las plataformas— y lo comparto para gente con la misma necesidad.",
+        ["Website"] = "Sitio web",
+        ["Donate"] = "Donar con PayPal",
+        ["TermsHeader"] = "TÉRMINOS",
+        ["TermsText"] = "Dudiver Music reproduce archivos de audio que ya están en tu computadora. No aloja, distribuye ni provee música: solo lee tus archivos locales. Sos responsable de los archivos que reproducís y de tener los derechos para hacerlo. El autor no se hace responsable del contenido que cada usuario decida escuchar. El software se ofrece «tal cual», sin garantías.",
     };
 
     private static readonly Dictionary<string, string> En = new()
@@ -136,5 +141,10 @@ public sealed class LocalizationManager : INotifyPropertyChanged
         ["MadeByFrom"] = "from Venezuela 🇻🇪",
         ["LicenseHeader"] = "LICENSE",
         ["LicenseText"] = "Free for personal and professional use. It cannot be sold or redistributed for profit. Don't remove the author's credits.",
+        ["AboutStory"] = "Made by a musician, to listen to music fast and easy, without relying on complex systems. I built it to hear my album before releasing it —how it would sound on the platforms— and I share it for people with the same need.",
+        ["Website"] = "Website",
+        ["Donate"] = "Donate with PayPal",
+        ["TermsHeader"] = "TERMS",
+        ["TermsText"] = "Dudiver Music plays audio files that are already on your computer. It does not host, distribute or provide any music: it only reads your local files. You are responsible for the files you play and for having the rights to do so. The author is not responsible for the content each user chooses to listen to. The software is provided “as is”, without warranties.",
     };
 }

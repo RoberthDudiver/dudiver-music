@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:loc="clr-namespace:DudiverMusic.Localization"
         Title="{loc:Tr AboutTitle}"
-        Height="580" Width="440"
+        Height="700" Width="450" MaxHeight="760"
         WindowStyle="None" ResizeMode="NoResize"
         WindowStartupLocation="CenterOwner"
         Background="Transparent" AllowsTransparency="True"
@@ -17,56 +17,76 @@
             <Ellipse Width="420" Height="420" Fill="{DynamicResource GlowGradient}"
                      Opacity="0.35" VerticalAlignment="Top" Margin="0,-80,0,0" />
 
-            <!-- Botón cerrar -->
+            <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,0,4,0">
+                <StackPanel Margin="34,28,34,26" VerticalAlignment="Top">
+                    <Image Source="../Assets/logo.png" Width="112" Height="112" HorizontalAlignment="Center" />
+
+                    <TextBlock HorizontalAlignment="Center" Margin="0,14,0,0" FontSize="26">
+                        <Run Text="Dudiver" FontWeight="Bold" />
+                        <Run Text="Music" Foreground="{DynamicResource Cyan}" FontWeight="SemiBold" />
+                    </TextBlock>
+
+                    <TextBlock Text="{loc:Tr Version}" HorizontalAlignment="Center" FontSize="12.5"
+                               Foreground="{DynamicResource TextMuted}" Margin="0,4,0,0" />
+
+                    <TextBlock Text="{loc:Tr AppTagline}"
+                               HorizontalAlignment="Center" TextAlignment="Center" FontSize="13.5"
+                               Foreground="{DynamicResource Text}" Margin="0,14,0,0" TextWrapping="Wrap" />
+
+                    <!-- Historia -->
+                    <TextBlock Text="{loc:Tr AboutStory}" HorizontalAlignment="Center" TextAlignment="Center"
+                               FontSize="12.5" Foreground="{DynamicResource TextMuted}" Margin="0,14,0,0"
+                               TextWrapping="Wrap" LineHeight="19" />
+
+                    <TextBlock HorizontalAlignment="Center" TextAlignment="Center" FontSize="13"
+                               Foreground="{DynamicResource TextMuted}" Margin="0,16,0,0" TextWrapping="Wrap">
+                        <Run Text="{loc:Tr MadeBy}" /><LineBreak />
+                        <Run Text="Roberth Dudiver" Foreground="{DynamicResource Text}" FontWeight="SemiBold" />
+                        <Run Text=" " /><Run Text="{loc:Tr MadeByFrom}" />
+                    </TextBlock>
+
+                    <!-- Redes + sitio -->
+                    <WrapPanel HorizontalAlignment="Center" Margin="0,16,0,0">
+                        <Button Style="{StaticResource GhostButton}" Content="dudiver.net" Margin="4"
+                                Tag="https://dudiver.net" Click="OnLink" />
+                        <Button Style="{StaticResource GhostButton}" Content="Instagram" Margin="4"
+                                Tag="https://instagram.com/dudivermusic" Click="OnLink" />
+                        <Button Style="{StaticResource GhostButton}" Content="TikTok" Margin="4"
+                                Tag="https://tiktok.com/@dudivermusic" Click="OnLink" />
+                        <Button Style="{StaticResource GhostButton}" Content="YouTube" Margin="4"
+                                Tag="https://youtube.com/@Dudiver" Click="OnLink" />
+                        <Button Style="{StaticResource GhostButton}" Content="GitHub" Margin="4"
+                                Tag="https://github.com/RoberthDudiver" Click="OnLink" />
+                    </WrapPanel>
+
+                    <!-- Licencia -->
+                    <Border CornerRadius="10" Background="{DynamicResource BgPanelAlt}" Margin="0,20,0,0" Padding="16,12">
+                        <StackPanel>
+                            <TextBlock Text="{loc:Tr LicenseHeader}" FontSize="10.5" FontWeight="Bold"
+                                       Foreground="{DynamicResource TextFaint}" />
+                            <TextBlock Margin="0,6,0,0" FontSize="12" TextWrapping="Wrap" LineHeight="18"
+                                       Foreground="{DynamicResource TextMuted}"
+                                       Text="{loc:Tr LicenseText}" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Términos -->
+                    <Border CornerRadius="10" Background="{DynamicResource BgPanelAlt}" Margin="0,10,0,0" Padding="16,12">
+                        <StackPanel>
+                            <TextBlock Text="{loc:Tr TermsHeader}" FontSize="10.5" FontWeight="Bold"
+                                       Foreground="{DynamicResource TextFaint}" />
+                            <TextBlock Margin="0,6,0,0" FontSize="12" TextWrapping="Wrap" LineHeight="18"
+                                       Foreground="{DynamicResource TextMuted}"
+                                       Text="{loc:Tr TermsText}" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Botón cerrar (encima) -->
             <Button Style="{StaticResource CloseButton}" Content="&#xE8BB;"
                     HorizontalAlignment="Right" VerticalAlignment="Top" Margin="6"
                     FontFamily="Segoe MDL2 Assets" Click="OnClose" />
-
-            <StackPanel Margin="34,30,34,26" VerticalAlignment="Top">
-                <Image Source="../Assets/logo.png" Width="120" Height="120" HorizontalAlignment="Center" />
-
-                <TextBlock HorizontalAlignment="Center" Margin="0,16,0,0" FontSize="26">
-                    <Run Text="Dudiver" FontWeight="Bold" />
-                    <Run Text="Music" Foreground="{DynamicResource Cyan}" FontWeight="SemiBold" />
-                </TextBlock>
-
-                <TextBlock Text="{loc:Tr Version}" HorizontalAlignment="Center" FontSize="12.5"
-                           Foreground="{DynamicResource TextMuted}" Margin="0,4,0,0" />
-
-                <TextBlock Text="{loc:Tr AppTagline}"
-                           HorizontalAlignment="Center" TextAlignment="Center" FontSize="13.5"
-                           Foreground="{DynamicResource Text}" Margin="0,16,0,0" TextWrapping="Wrap" />
-
-                <TextBlock HorizontalAlignment="Center" TextAlignment="Center" FontSize="13"
-                           Foreground="{DynamicResource TextMuted}" Margin="0,14,0,0" TextWrapping="Wrap">
-                    <Run Text="{loc:Tr MadeBy}" /><LineBreak />
-                    <Run Text="Roberth Dudiver" Foreground="{DynamicResource Text}" FontWeight="SemiBold" />
-                    <Run Text=" " /><Run Text="{loc:Tr MadeByFrom}" />
-                </TextBlock>
-
-                <!-- Redes -->
-                <WrapPanel HorizontalAlignment="Center" Margin="0,18,0,0">
-                    <Button Style="{StaticResource GhostButton}" Content="Instagram" Margin="4"
-                            Tag="https://instagram.com/dudivermusic" Click="OnLink" />
-                    <Button Style="{StaticResource GhostButton}" Content="TikTok" Margin="4"
-                            Tag="https://tiktok.com/@dudivermusic" Click="OnLink" />
-                    <Button Style="{StaticResource GhostButton}" Content="YouTube" Margin="4"
-                            Tag="https://youtube.com/@Dudiver" Click="OnLink" />
-                    <Button Style="{StaticResource GhostButton}" Content="GitHub" Margin="4"
-                            Tag="https://github.com/RoberthDudiver" Click="OnLink" />
-                </WrapPanel>
-
-                <!-- Licencia -->
-                <Border CornerRadius="10" Background="{DynamicResource BgPanelAlt}" Margin="0,22,0,0" Padding="16,12">
-                    <StackPanel>
-                        <TextBlock Text="{loc:Tr LicenseHeader}" FontSize="10.5" FontWeight="Bold"
-                                   Foreground="{DynamicResource TextFaint}" />
-                        <TextBlock Margin="0,6,0,0" FontSize="12" TextWrapping="Wrap" LineHeight="18"
-                                   Foreground="{DynamicResource TextMuted}"
-                                   Text="{loc:Tr LicenseText}" />
-                    </StackPanel>
-                </Border>
-            </StackPanel>
         </Grid>
     </Border>
 </Window>

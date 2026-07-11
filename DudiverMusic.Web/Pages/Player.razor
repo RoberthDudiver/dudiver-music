@@ -1,0 +1,518 @@
+@page "/"
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<div class="app" @ref="appEl">
+
+    <!-- ===== Top bar ===== -->
+    <header class="topbar">
+        <div class="brand">
+            <img src="logo.png" alt="Dudiver Music" />
+            <h1><b>Dudiver</b> <span>Music</span></h1>
+        </div>
+        <div class="topbar-actions">
+            <button class="chip" title="@T("About")" @onclick="() => showAbout = true">@Ico("info")</button>
+            <button class="chip" title="@T("Language")" @onclick="ToggleLangPopup">@Ico("globe")</button>
+            @if (showLang)
+            {
+                <div class="pop" style="top:52px; right:0;">
+                    <div class="pop-h">@T("Language")</div>
+                    @foreach (var l in langs)
+                    {
+                        <button class="pop-item @(lang == l.Key ? "sel" : "")" @onclick="() => SetLang(l.Key)">
+                            <span class="chk">@Ico("check")</span> @l.Value
+                        </button>
+                    }
+                </div>
+            }
+        </div>
+    </header>
+
+    <!-- ===== Body ===== -->
+    <div class="body">
+        <!-- Sidebar -->
+        <aside class="side">
+            <div class="side-head">
+                <span class="lbl">@T("YourPlaylists")</span>
+                <button class="chip" style="width:28px;height:28px" title="@T("NewPlaylist")" @onclick="NewPlaylist">@Ico("plus")</button>
+            </div>
+            <div class="add-row">
+                <button class="ghost" @onclick="PickFolder" title="@T("TipAddFolder")">@Ico("folder") @T("Folder")</button>
+                <button class="ghost" @onclick="PickFiles" title="@T("TipAddFiles")">@Ico("music") @T("Files")</button>
+            </div>
+            <div class="playlists">
+                @foreach (var p in playlists)
+                {
+                    <div class="pl @(p == selected ? "active" : "")" @onclick="() => Select(p)">
+                        <div class="meta">
+                            @if (p.IsRenaming)
+                            {
+                                <input class="rename" value="@p.Name" @onchange="e => CommitRename(p, e)"
+                                       @onkeydown="e => RenameKey(p, e)" @onclick:stopPropagation="true"
+                                       @ref="renameInput" />
+                            }
+                            else
+                            {
+                                <div class="nm">@p.Name</div>
+                                <div class="ct">@CountText(p.Tracks.Count)</div>
+                            }
+                        </div>
+                        @if (!p.IsRenaming)
+                        {
+                            <div class="acts">
+                                <button title="@T("TipRename")" @onclick="() => StartRename(p)" @onclick:stopPropagation="true">@Ico("edit")</button>
+                                <button title="@T("TipDelete")" @onclick="() => Delete(p)" @onclick:stopPropagation="true">@Ico("trash")</button>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </aside>
+
+        <!-- Main -->
+        <section class="main">
+            @if (selected is not null)
+            {
+                <div class="plview">
+                    <div class="eyebrow">@T("Playlist")</div>
+                    <h2>@selected.Name</h2>
+                    <div class="subc">@CountText(selected.Tracks.Count)</div>
+                    <div class="tracks">
+                        @foreach (var t in selected.Tracks)
+                        {
+                            <div class="tr @(t == current ? "playing" : "")" @ondblclick="() => PlayTrack(selected, t)"
+                                 @onclick="() => PlayTrack(selected, t)">
+                                <div class="ix">
+                                    @if (t == current)
+                                    {
+                                        <span class="eq"><i></i><i></i><i></i><i></i></span>
+                                    }
+                                    else
+                                    {
+                                        <span class="play">@Ico("play")</span>
+                                    }
+                                </div>
+                                <div class="ti">@t.Title</div>
+                                <div class="du">@t.DurationText</div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="drop">
+                    <div class="glow"></div>
+                    <div class="drop-in">
+                        <img src="logo.png" alt="" />
+                        <h3>@T("DropTitle")</h3>
+                        <p>@T("DropSubtitle")</p>
+                        <div class="btns">
+                            <button class="pill" @onclick="PickFolder">@T("ChooseFolder")</button>
+                            <button class="ghost" style="height:40px;padding:0 18px" @onclick="PickFiles">@T("ChooseFiles")</button>
+                        </div>
+                        <div class="formats">MP3 · WAV · FLAC · M4A · AAC · OGG</div>
+                    </div>
+                </div>
+            }
+        </section>
+    </div>
+
+    <!-- ===== Now playing ===== -->
+    <footer class="now">
+        <div class="np">
+            <div class="t1">@(current?.Title ?? T("NothingPlaying"))</div>
+            <div class="t2">@(playingList?.Name ?? "")</div>
+        </div>
+
+        <div class="center">
+            <div class="transport">
+                <button class="icon-btn @(shuffle ? "on" : "")" title="@T("Shuffle")" @onclick="ToggleShuffle">@Ico("shuffle")</button>
+                <button class="icon-btn" title="@T("Previous")" @onclick="Previous">@Ico("prev")</button>
+                <button class="play-btn" @onclick="TogglePlay">@Ico(isPlaying ? "pause" : "play")</button>
+                <button class="icon-btn" title="@T("Next")" @onclick="Next">@Ico("next")</button>
+                <button class="icon-btn @(repeat != 0 ? "on" : "")" title="@RepeatTip()" @onclick="CycleRepeat" style="position:relative">
+                    @Ico("repeat")
+                    @if (repeat == 2)
+                    {
+                        <span style="position:absolute;font-size:8px;font-weight:700;bottom:8px;right:8px;color:var(--cyan)">1</span>
+                    }
+                </button>
+            </div>
+            <div class="seekrow">
+                <span class="time r">@Fmt(position)</span>
+                <input type="range" class="seek" min="0" max="@Math.Max(1, duration)" step="0.1"
+                       value="@position" @oninput="OnSeek" />
+                <span class="time">@Fmt(duration)</span>
+            </div>
+        </div>
+
+        <div class="vol">
+            <button class="icon-btn" title="@T("Output")" @onclick="ToggleDevicePopup">@Ico("speaker")</button>
+            @if (showDevices)
+            {
+                <div class="pop top" style="right:150px;">
+                    <div class="pop-h">@T("Output")</div>
+                    @if (devices.Count == 0)
+                    {
+                        <div class="pop-item" style="color:var(--muted)">@T("NoDevices")</div>
+                    }
+                    @foreach (var d in devices)
+                    {
+                        <button class="pop-item @(d.Id == currentDevice ? "sel" : "")" @onclick="() => SetDevice(d.Id)">
+                            <span class="chk">@Ico("check")</span> @d.Name
+                        </button>
+                    }
+                </div>
+            }
+            <button class="icon-btn" title="@T("Mute")" @onclick="ToggleMute">@Ico(volume <= 0.001 ? "mute" : "volhigh")</button>
+            <input type="range" class="volume" min="0" max="1" step="0.02" value="@volume" @oninput="OnVolume" />
+        </div>
+    </footer>
+</div>
+
+@if (showAbout)
+{
+    <div class="modal-bg" @onclick="() => showAbout = false">
+        <div class="modal" @onclick:stopPropagation="true">
+            <button class="x" title="@T("Close")" @onclick="() => showAbout = false">@Ico("close")</button>
+            <img class="logo" src="logo.png" alt="Dudiver Music" />
+            <h2><b>Dudiver</b> <span>Music</span></h2>
+            <div class="ver">@T("Version")</div>
+            <div class="tag">@T("AppTagline")</div>
+            <div class="story">@T("AboutStory")</div>
+            <div class="made">@T("MadeBy")<br /><b>Roberth Dudiver</b> @T("MadeByFrom")</div>
+            <div class="links">
+                <a href="https://dudiver.net" target="_blank" rel="noopener">dudiver.net</a>
+                <a href="https://instagram.com/dudivermusic" target="_blank" rel="noopener">Instagram</a>
+                <a href="https://tiktok.com/@@dudivermusic" target="_blank" rel="noopener">TikTok</a>
+                <a href="https://youtube.com/@@Dudiver" target="_blank" rel="noopener">YouTube</a>
+                <a href="https://github.com/RoberthDudiver" target="_blank" rel="noopener">GitHub</a>
+            </div>
+            <a class="donate" href="https://paypal.me/dudivermusic" target="_blank" rel="noopener">@Ico("heart") @T("Donate")</a>
+            <div class="box">
+                <h4>@T("LicenseHeader")</h4>
+                <p>@T("LicenseText")</p>
+            </div>
+            <div class="box">
+                <h4>@T("TermsHeader")</h4>
+                <p>@T("TermsText")</p>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    // ===== Estado =====
+    List<Playlist> playlists = new();
+    Playlist? selected;
+    Playlist? playingList;
+    Track? current;
+    bool isPlaying;
+    double position, duration;
+    double volume = 0.8, volumeBeforeMute = 0.8;
+    bool shuffle;
+    int repeat; // 0 off, 1 all, 2 one
+    readonly Random rng = new();
+
+    // Popups / dispositivos
+    bool showDevices, showLang, showAbout;
+    List<AudioDeviceInfo> devices = new();
+    string currentDevice = "";
+
+    // Interop
+    ElementReference appEl;
+    ElementReference renameInput;
+    DotNetObjectReference<Player>? selfRef;
+    bool jsReady;
+
+    // ===== i18n =====
+    string lang = "es";
+    readonly Dictionary<string, string> langs = new() { ["es"] = "Español", ["en"] = "English" };
+
+    protected override async Task OnAfterRenderAsync(bool first)
+    {
+        if (first)
+        {
+            selfRef = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("dudiverPlayer.init", selfRef);
+            await JS.InvokeVoidAsync("dudiverPlayer.attachDrop", appEl);
+            await JS.InvokeVoidAsync("dudiverPlayer.setVolume", volume);
+            jsReady = true;
+        }
+        if (pendingFocusRename)
+        {
+            pendingFocusRename = false;
+            try { await renameInput.FocusAsync(); } catch { }
+        }
+    }
+
+    // ===== Callbacks desde JS =====
+    [JSInvokable] public void OnTime(double t) { position = t; StateHasChanged(); }
+    [JSInvokable] public void OnLoaded(double d) { duration = d; if (current is not null) current.DurationSeconds = d; StateHasChanged(); }
+    [JSInvokable] public void OnPlayState(bool playing) { isPlaying = playing; StateHasChanged(); }
+    [JSInvokable] public void OnEnded() => _ = TrackFinished();
+
+    [JSInvokable]
+    public async Task OnFilesDropped(PickedFile[] files)
+    {
+        await AddPicked(files, appendToSelected: false);
+    }
+
+    // ===== Cargar archivos / carpetas =====
+    async Task PickFiles()
+    {
+        var files = await JS.InvokeAsync<PickedFile[]>("dudiverPlayer.pickFiles");
+        await AddPicked(files, appendToSelected: true);
+    }
+
+    async Task PickFolder()
+    {
+        var files = await JS.InvokeAsync<PickedFile[]>("dudiverPlayer.pickFolder");
+        await AddPicked(files, appendToSelected: false);
+    }
+
+    async Task AddPicked(PickedFile[] files, bool appendToSelected)
+    {
+        if (files is null || files.Length == 0) return;
+        var tracks = files.Select(f => new Track { Id = f.Id, Title = f.Name }).ToList();
+
+        // Nombre sugerido: carpeta común, si la hay.
+        var folders = files.Select(f => f.Folder).Where(x => !string.IsNullOrEmpty(x)).Distinct().ToList();
+        string suggested = folders.Count == 1 ? folders[0] : T("MySongs");
+
+        Playlist? target = appendToSelected ? selected : null;
+        if (target is null)
+        {
+            target = new Playlist { Name = suggested };
+            playlists.Add(target);
+            selected = target;
+        }
+        target.Tracks.AddRange(tracks);
+        StateHasChanged();
+    }
+
+    // ===== Reproducción =====
+    async Task PlayTrack(Playlist pl, Track t)
+    {
+        playingList = pl;
+        if (current is not null) { } // limpieza visual la maneja el binding
+        current = t;
+        position = 0; duration = t.DurationSeconds;
+        await JS.InvokeVoidAsync("dudiverPlayer.play", t.Id);
+        isPlaying = true;
+        StateHasChanged();
+    }
+
+    async Task TogglePlay()
+    {
+        if (current is null)
+        {
+            var first = selected?.Tracks.FirstOrDefault();
+            if (first is not null) await PlayTrack(selected!, first);
+            return;
+        }
+        if (isPlaying) await JS.InvokeVoidAsync("dudiverPlayer.pause");
+        else await JS.InvokeVoidAsync("dudiverPlayer.resume");
+    }
+
+    async Task Next() => await Advance(auto: false);
+
+    async Task TrackFinished()
+    {
+        if (repeat == 2 && current is not null) { await PlayTrack(playingList!, current); return; }
+        await Advance(auto: true);
+    }
+
+    async Task Advance(bool auto)
+    {
+        var list = playingList?.Tracks;
+        if (list is null || list.Count == 0 || current is null) return;
+        int idx = list.IndexOf(current);
+        int next;
+        if (shuffle && list.Count > 1) { do { next = rng.Next(list.Count); } while (next == idx); }
+        else
+        {
+            next = idx + 1;
+            if (next >= list.Count)
+            {
+                if (repeat != 0 || !auto) next = 0;
+                else { isPlaying = false; StateHasChanged(); return; }
+            }
+        }
+        await PlayTrack(playingList!, list[next]);
+    }
+
+    async Task Previous()
+    {
+        var list = playingList?.Tracks;
+        if (list is null || list.Count == 0 || current is null) return;
+        if (position > 3) { await JS.InvokeVoidAsync("dudiverPlayer.seek", 0); return; }
+        int idx = list.IndexOf(current);
+        int prev = idx - 1;
+        if (prev < 0) prev = repeat != 0 ? list.Count - 1 : 0;
+        await PlayTrack(playingList!, list[prev]);
+    }
+
+    async Task OnSeek(ChangeEventArgs e)
+    {
+        if (double.TryParse(e.Value?.ToString(), System.Globalization.CultureInfo.InvariantCulture, out var s))
+        { position = s; await JS.InvokeVoidAsync("dudiverPlayer.seek", s); }
+    }
+
+    async Task OnVolume(ChangeEventArgs e)
+    {
+        if (double.TryParse(e.Value?.ToString(), System.Globalization.CultureInfo.InvariantCulture, out var v))
+        { volume = v; await JS.InvokeVoidAsync("dudiverPlayer.setVolume", v); }
+    }
+
+    async Task ToggleMute()
+    {
+        if (volume > 0.001) { volumeBeforeMute = volume; volume = 0; }
+        else volume = volumeBeforeMute <= 0.001 ? 0.8 : volumeBeforeMute;
+        await JS.InvokeVoidAsync("dudiverPlayer.setVolume", volume);
+    }
+
+    void ToggleShuffle() => shuffle = !shuffle;
+    void CycleRepeat() => repeat = (repeat + 1) % 3;
+    string RepeatTip() => repeat switch { 1 => T("RepeatAll"), 2 => T("RepeatOne"), _ => T("RepeatOff") };
+
+    // ===== Playlists =====
+    void Select(Playlist p) => selected = p;
+
+    void NewPlaylist()
+    {
+        var p = new Playlist { Name = T("NewPlaylistName"), IsRenaming = true };
+        playlists.Add(p);
+        selected = p;
+        pendingFocusRename = true;
+    }
+
+    bool pendingFocusRename;
+    void StartRename(Playlist p) { p.IsRenaming = true; pendingFocusRename = true; }
+    void CommitRename(Playlist p, ChangeEventArgs e)
+    {
+        var v = e.Value?.ToString();
+        if (!string.IsNullOrWhiteSpace(v)) p.Name = v!.Trim();
+        p.IsRenaming = false;
+    }
+    void RenameKey(Playlist p, KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") p.IsRenaming = false;
+        else if (e.Key == "Escape") p.IsRenaming = false;
+    }
+    void Delete(Playlist p)
+    {
+        playlists.Remove(p);
+        if (selected == p) selected = playlists.FirstOrDefault();
+    }
+
+    // ===== Dispositivos de salida =====
+    async Task ToggleDevicePopup()
+    {
+        showDevices = !showDevices; showLang = false;
+        if (showDevices)
+        {
+            devices = (await JS.InvokeAsync<AudioDeviceInfo[]>("dudiverPlayer.getDevices")).ToList();
+            if (devices.Count > 0 && !devices.Any(d => d.Id == "default"))
+                devices.Insert(0, new AudioDeviceInfo("default", T("SystemDefault")));
+        }
+    }
+    async Task SetDevice(string id)
+    {
+        currentDevice = id; showDevices = false;
+        await JS.InvokeVoidAsync("dudiverPlayer.setSink", id);
+    }
+
+    // ===== i18n / helpers =====
+    void ToggleLangPopup() { showLang = !showLang; showDevices = false; }
+    void SetLang(string l) { lang = l; showLang = false; }
+    string T(string key) => (lang == "en" ? En : Es).TryGetValue(key, out var v) ? v : key;
+    string CountText(int n) => n == 1 ? T("SongOne") : string.Format(T("SongMany"), n);
+
+    static string Fmt(double s)
+    {
+        if (s <= 0 || double.IsNaN(s)) return "0:00";
+        var ts = TimeSpan.FromSeconds(s);
+        return ts.TotalHours >= 1 ? ts.ToString(@"h\:mm\:ss") : ts.ToString(@"m\:ss");
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        selfRef?.Dispose();
+        if (jsReady) { try { await JS.InvokeVoidAsync("dudiverPlayer.pause"); } catch { } }
+    }
+
+    // ===== Iconos SVG =====
+    MarkupString Ico(string n) => new($"<svg viewBox=\"0 0 24 24\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">{Svg[n]}</svg>");
+    static readonly Dictionary<string, string> Svg = new()
+    {
+        ["play"] = "<path d='M8 5v14l11-7z' fill='currentColor'/>",
+        ["pause"] = "<path d='M7 5h3.5v14H7zM13.5 5H17v14h-3.5z' fill='currentColor'/>",
+        ["prev"] = "<path d='M7 6h2.2v12H7zM19 6l-9 6 9 6z' fill='currentColor'/>",
+        ["next"] = "<path d='M14.8 6H17v12h-2.2zM5 6l9 6-9 6z' fill='currentColor'/>",
+        ["shuffle"] = "<path d='M16 4h4v4M20 4l-6 6M4 20l5-5M16 20h4v-4M4 4l16 16' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/>",
+        ["repeat"] = "<path d='M17 2l4 4-4 4M3 11V9a4 4 0 0 1 4-4h13M7 22l-4-4 4-4M21 13v2a4 4 0 0 1-4 4H4' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/>",
+        ["volhigh"] = "<path d='M11 5 6 9H2v6h4l5 4z' fill='currentColor'/><path d='M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13' stroke='currentColor' stroke-width='1.8' stroke-linecap='round'/>",
+        ["mute"] = "<path d='M11 5 6 9H2v6h4l5 4z' fill='currentColor'/><path d='M22 9l-6 6M16 9l6 6' stroke='currentColor' stroke-width='1.8' stroke-linecap='round'/>",
+        ["folder"] = "<path d='M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z' stroke='currentColor' stroke-width='1.8' stroke-linejoin='round'/><path d='M12 11v5M9.5 13.5 12 11l2.5 2.5' stroke='currentColor' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/>",
+        ["music"] = "<path d='M9 17V5l11-2v12' stroke='currentColor' stroke-width='1.8' stroke-linejoin='round'/><circle cx='6' cy='17' r='3' fill='currentColor'/><circle cx='17' cy='15' r='3' fill='currentColor'/>",
+        ["plus"] = "<path d='M12 5v14M5 12h14' stroke='currentColor' stroke-width='2' stroke-linecap='round'/>",
+        ["edit"] = "<path d='M4 20h4L19 9l-4-4L4 16z' stroke='currentColor' stroke-width='1.7' stroke-linejoin='round'/><path d='M14 5l4 4' stroke='currentColor' stroke-width='1.7'/>",
+        ["trash"] = "<path d='M4 7h16M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13' stroke='currentColor' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/>",
+        ["globe"] = "<circle cx='12' cy='12' r='9' stroke='currentColor' stroke-width='1.7'/><path d='M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18' stroke='currentColor' stroke-width='1.5' fill='none'/>",
+        ["speaker"] = "<path d='M4 13v-1a8 8 0 0 1 16 0v1' stroke='currentColor' stroke-width='1.8'/><rect x='3' y='13' width='4' height='7' rx='2' stroke='currentColor' stroke-width='1.8'/><rect x='17' y='13' width='4' height='7' rx='2' stroke='currentColor' stroke-width='1.8'/>",
+        ["check"] = "<path d='M4 12l5 5L20 6' stroke='currentColor' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/>",
+        ["info"] = "<circle cx='12' cy='12' r='9' stroke='currentColor' stroke-width='1.7'/><path d='M12 11v5' stroke='currentColor' stroke-width='2' stroke-linecap='round'/><circle cx='12' cy='7.6' r='1.2' fill='currentColor'/>",
+        ["close"] = "<path d='M6 6l12 12M18 6 6 18' stroke='currentColor' stroke-width='2' stroke-linecap='round'/>",
+        ["heart"] = "<path d='M12 21s-7-4.4-9.4-8.8A5 5 0 0 1 12 6.1 5 5 0 0 1 21.4 12.2C19 16.6 12 21 12 21z' fill='currentColor'/>",
+    };
+
+    // ===== Diccionarios =====
+    static readonly Dictionary<string, string> Es = new()
+    {
+        ["Language"] = "Idioma", ["YourPlaylists"] = "TUS PLAYLISTS", ["NewPlaylist"] = "Nueva playlist",
+        ["Folder"] = "Carpeta", ["Files"] = "Archivos", ["TipAddFolder"] = "Agregar una carpeta como playlist",
+        ["TipAddFiles"] = "Agregar archivos a la playlist actual", ["TipRename"] = "Renombrar", ["TipDelete"] = "Eliminar",
+        ["Playlist"] = "PLAYLIST", ["DropTitle"] = "Arrastrá una carpeta o archivos de música acá",
+        ["DropSubtitle"] = "Con una carpeta se crea una playlist con su nombre", ["ChooseFolder"] = "Elegir carpeta",
+        ["ChooseFiles"] = "Elegir archivos", ["NothingPlaying"] = "Nada sonando", ["Shuffle"] = "Aleatorio",
+        ["Previous"] = "Anterior", ["Next"] = "Siguiente", ["RepeatOff"] = "Repetir: desactivado",
+        ["RepeatAll"] = "Repetir la playlist", ["RepeatOne"] = "Repetir esta canción", ["Mute"] = "Silenciar",
+        ["Output"] = "Salida de audio", ["NoDevices"] = "Sin dispositivos", ["SystemDefault"] = "Predeterminado del sistema",
+        ["MySongs"] = "Mis canciones", ["NewPlaylistName"] = "Nueva playlist",
+        ["SongOne"] = "1 canción", ["SongMany"] = "{0} canciones",
+        ["About"] = "Acerca de", ["Close"] = "Cerrar", ["Version"] = "Versión 1.0.0",
+        ["AppTagline"] = "Reproductor de música moderno y sencillo.",
+        ["AboutStory"] = "Hecho por un músico, para escuchar música rápido y fácil, sin depender de sistemas complejos. Lo creé para escuchar mi disco antes de lanzarlo —como sonaría en las plataformas— y lo comparto para gente con la misma necesidad.",
+        ["MadeBy"] = "Hecho con código y beats por", ["MadeByFrom"] = "desde Venezuela 🇻🇪",
+        ["Donate"] = "Donar con PayPal",
+        ["LicenseHeader"] = "LICENCIA",
+        ["LicenseText"] = "Gratis para uso personal y profesional. No puede ser vendido ni redistribuido con fines de lucro. No elimines los créditos del autor.",
+        ["TermsHeader"] = "TÉRMINOS",
+        ["TermsText"] = "Dudiver Music reproduce archivos de audio que ya están en tu dispositivo. No aloja, distribuye ni provee música: solo lee tus archivos locales. Sos responsable de los archivos que reproducís y de tener los derechos para hacerlo. El autor no se hace responsable del contenido que cada usuario decida escuchar. El software se ofrece «tal cual», sin garantías.",
+    };
+    static readonly Dictionary<string, string> En = new()
+    {
+        ["Language"] = "Language", ["YourPlaylists"] = "YOUR PLAYLISTS", ["NewPlaylist"] = "New playlist",
+        ["Folder"] = "Folder", ["Files"] = "Files", ["TipAddFolder"] = "Add a folder as a playlist",
+        ["TipAddFiles"] = "Add files to the current playlist", ["TipRename"] = "Rename", ["TipDelete"] = "Delete",
+        ["Playlist"] = "PLAYLIST", ["DropTitle"] = "Drag a music folder or files here",
+        ["DropSubtitle"] = "A folder becomes a playlist with its name", ["ChooseFolder"] = "Choose folder",
+        ["ChooseFiles"] = "Choose files", ["NothingPlaying"] = "Nothing playing", ["Shuffle"] = "Shuffle",
+        ["Previous"] = "Previous", ["Next"] = "Next", ["RepeatOff"] = "Repeat: off",
+        ["RepeatAll"] = "Repeat the playlist", ["RepeatOne"] = "Repeat this song", ["Mute"] = "Mute",
+        ["Output"] = "Audio output", ["NoDevices"] = "No devices", ["SystemDefault"] = "System default",
+        ["MySongs"] = "My songs", ["NewPlaylistName"] = "New playlist",
+        ["SongOne"] = "1 song", ["SongMany"] = "{0} songs",
+        ["About"] = "About", ["Close"] = "Close", ["Version"] = "Version 1.0.0",
+        ["AppTagline"] = "A modern, simple music player.",
+        ["AboutStory"] = "Made by a musician, to listen to music fast and easy, without relying on complex systems. I built it to hear my album before releasing it —how it would sound on the platforms— and I share it for people with the same need.",
+        ["MadeBy"] = "Made with code and beats by", ["MadeByFrom"] = "from Venezuela 🇻🇪",
+        ["Donate"] = "Donate with PayPal",
+        ["LicenseHeader"] = "LICENSE",
+        ["LicenseText"] = "Free for personal and professional use. It cannot be sold or redistributed for profit. Don't remove the author's credits.",
+        ["TermsHeader"] = "TERMS",
+        ["TermsText"] = "Dudiver Music plays audio files that are already on your device. It does not host, distribute or provide any music: it only reads your local files. You are responsible for the files you play and for having the rights to do so. The author is not responsible for the content each user chooses to listen to. The software is provided “as is”, without warranties.",
+    };
+}

@@ -1,0 +1,20 @@
+# ---- Build: publica el Blazor WebAssembly a estáticos ----
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+
+COPY DudiverMusic.Web/DudiverMusic.Web.csproj DudiverMusic.Web/
+RUN dotnet restore DudiverMusic.Web/DudiverMusic.Web.csproj
+
+COPY DudiverMusic.Web/ DudiverMusic.Web/
+
+# La versión (github.sha) dispara el auto-update en los clientes.
+ARG VERSION=dev
+RUN echo "{ \"version\": \"${VERSION}\" }" > DudiverMusic.Web/wwwroot/version.json
+
+RUN dotnet publish DudiverMusic.Web/DudiverMusic.Web.csproj -c Release -o /app/publish --no-restore
+
+# ---- Runtime: nginx sirve los estáticos ----
+FROM nginx:alpine AS runtime
+COPY --from=build /app/publish/wwwroot /usr/share/nginx/html
+COPY web-nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80

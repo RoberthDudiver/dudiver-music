@@ -1,0 +1,14 @@
+{
+  "name": "Dudiver Music",
+  "short_name": "Dudiver Music",
+  "description": "Reproductor de música moderno y sencillo.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0A0A12",
+  "theme_color": "#0A0A12",
+  "orientation": "any",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "logo.png", "sizes": "256x256", "type": "image/png", "purpose": "any" }
+  ]
+}

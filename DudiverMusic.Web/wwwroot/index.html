@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Dudiver Music</title>
+    <base href="/" />
+    <meta name="theme-color" content="#0A0A12" />
+    <meta name="description" content="Reproductor de música moderno y sencillo. Arrastrá una carpeta y suena." />
+    <link rel="icon" type="image/png" href="logo.png" />
+    <link rel="apple-touch-icon" href="icon-192.png" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="stylesheet" href="css/app.css" />
+    <link href="DudiverMusic.Web.styles.css" rel="stylesheet" />
+</head>
+
+<body>
+    <div id="app">
+        <div class="boot">
+            <img src="logo.png" width="96" height="96" alt="Dudiver Music" />
+            <div class="boot-bar"><span></span></div>
+        </div>
+    </div>
+
+    <div id="blazor-error-ui">
+        Ocurrió un error · An error occurred.
+        <a href="." class="reload">Recargar</a>
+        <span class="dismiss">🗙</span>
+    </div>
+
+    <script src="_framework/blazor.webassembly#[.{fingerprint}].js"></script>
+    <script src="js/player.js"></script>
+    <script>
+        // Auto-update: si cambia version.json, limpia caches y recarga.
+        (async () => {
+            try {
+                const r = await fetch('version.json?_=' + Date.now(), { cache: 'no-store' });
+                if (!r.ok) return;
+                const { version } = await r.json();
+                const prev = localStorage.getItem('dm-version');
+                if (prev && prev !== version) {
+                    if (self.caches) for (const k of await caches.keys()) await caches.delete(k);
+                    localStorage.setItem('dm-version', version);
+                    location.reload();
+                    return;
+                }
+                localStorage.setItem('dm-version', version);
+            } catch { /* offline */ }
+        })();
+    </script>
+</body>
+
+</html>

@@ -101,6 +101,32 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type ListBoxItem}">
+                        <ControlTemplate.Resources>
+                            <!-- Ecualizador: barras que rebotan mientras suena -->
+                            <Storyboard x:Key="eqAnim" RepeatBehavior="Forever" AutoReverse="True">
+                                <DoubleAnimation Storyboard.TargetName="b1" Duration="0:0:0.50"
+                                                 Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
+                                                 From="0.25" To="1.0" />
+                                <DoubleAnimation Storyboard.TargetName="b2" Duration="0:0:0.42"
+                                                 Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
+                                                 From="1.0" To="0.30" />
+                                <DoubleAnimation Storyboard.TargetName="b3" Duration="0:0:0.62"
+                                                 Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
+                                                 From="0.45" To="0.95" />
+                                <DoubleAnimation Storyboard.TargetName="b4" Duration="0:0:0.36"
+                                                 Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
+                                                 From="0.7" To="0.25" />
+                            </Storyboard>
+                            <!-- Glow neón que late en el nombre -->
+                            <Storyboard x:Key="glowAnim" RepeatBehavior="Forever" AutoReverse="True">
+                                <DoubleAnimation Storyboard.TargetName="title" Duration="0:0:1.1"
+                                                 Storyboard.TargetProperty="(UIElement.Effect).(DropShadowEffect.Opacity)"
+                                                 From="0.30" To="0.90" />
+                                <DoubleAnimation Storyboard.TargetName="title" Duration="0:0:1.1"
+                                                 Storyboard.TargetProperty="(UIElement.Effect).(DropShadowEffect.BlurRadius)"
+                                                 From="5" To="15" />
+                            </Storyboard>
+                        </ControlTemplate.Resources>
                         <Border x:Name="bd" CornerRadius="8" Background="Transparent" Padding="14,10"
                                 MouseLeftButtonDown="OnTrackClick">
                             <Grid>
@@ -110,22 +136,41 @@
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
 
-                                <!-- Indicador play (hover / actual) -->
-                                <Grid Grid.Column="0" VerticalAlignment="Center">
+                                <!-- Indicador: play al hover, ecualizador animado si suena -->
+                                <Grid Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center">
                                     <TextBlock x:Name="hoverPlay" FontFamily="Segoe MDL2 Assets"
                                                Text="&#xE768;" FontSize="12"
                                                Foreground="{DynamicResource TextMuted}"
                                                HorizontalAlignment="Center" Opacity="0" />
-                                    <TextBlock x:Name="nowPlaying" FontFamily="Segoe MDL2 Assets"
-                                               Text="&#xE9D6;" FontSize="13"
-                                               Foreground="{DynamicResource Cyan}"
-                                               HorizontalAlignment="Center"
-                                               Visibility="{Binding IsCurrent, Converter={StaticResource BoolVis}}" />
+                                    <StackPanel x:Name="eq" Orientation="Horizontal" Height="15"
+                                                HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                Visibility="{Binding IsCurrent, Converter={StaticResource BoolVis}}">
+                                        <Rectangle x:Name="b1" Width="2.5" Height="15" Margin="1,0"
+                                                   Fill="{DynamicResource Cyan}" RenderTransformOrigin="0.5,1">
+                                            <Rectangle.RenderTransform><ScaleTransform ScaleY="0.5" /></Rectangle.RenderTransform>
+                                        </Rectangle>
+                                        <Rectangle x:Name="b2" Width="2.5" Height="15" Margin="1,0"
+                                                   Fill="{DynamicResource Cyan}" RenderTransformOrigin="0.5,1">
+                                            <Rectangle.RenderTransform><ScaleTransform ScaleY="1.0" /></Rectangle.RenderTransform>
+                                        </Rectangle>
+                                        <Rectangle x:Name="b3" Width="2.5" Height="15" Margin="1,0"
+                                                   Fill="{DynamicResource Cyan}" RenderTransformOrigin="0.5,1">
+                                            <Rectangle.RenderTransform><ScaleTransform ScaleY="0.65" /></Rectangle.RenderTransform>
+                                        </Rectangle>
+                                        <Rectangle x:Name="b4" Width="2.5" Height="15" Margin="1,0"
+                                                   Fill="{DynamicResource Cyan}" RenderTransformOrigin="0.5,1">
+                                            <Rectangle.RenderTransform><ScaleTransform ScaleY="0.85" /></Rectangle.RenderTransform>
+                                        </Rectangle>
+                                    </StackPanel>
                                 </Grid>
 
                                 <TextBlock x:Name="title" Grid.Column="1" Text="{Binding Title}"
                                            FontSize="13.5" VerticalAlignment="Center" Margin="12,0,10,0"
-                                           TextTrimming="CharacterEllipsis" />
+                                           TextTrimming="CharacterEllipsis">
+                                    <TextBlock.Effect>
+                                        <DropShadowEffect Color="#FF22D3EE" BlurRadius="0" ShadowDepth="0" Opacity="0" />
+                                    </TextBlock.Effect>
+                                </TextBlock>
 
                                 <TextBlock Grid.Column="2" Text="{Binding DurationText}" FontSize="12.5"
                                            Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center" />
@@ -140,6 +185,17 @@
                                 <Setter TargetName="title" Property="Foreground" Value="{DynamicResource Cyan}" />
                                 <Setter TargetName="title" Property="FontWeight" Value="SemiBold" />
                                 <Setter TargetName="hoverPlay" Property="Opacity" Value="0" />
+                            </DataTrigger>
+                            <!-- Mientras suena: ecualizador + glow animados -->
+                            <DataTrigger Binding="{Binding IsPlaying}" Value="True">
+                                <DataTrigger.EnterActions>
+                                    <BeginStoryboard x:Name="eqSb" Storyboard="{StaticResource eqAnim}" />
+                                    <BeginStoryboard x:Name="glowSb" Storyboard="{StaticResource glowAnim}" />
+                                </DataTrigger.EnterActions>
+                                <DataTrigger.ExitActions>
+                                    <StopStoryboard BeginStoryboardName="eqSb" />
+                                    <StopStoryboard BeginStoryboardName="glowSb" />
+                                </DataTrigger.ExitActions>
                             </DataTrigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
