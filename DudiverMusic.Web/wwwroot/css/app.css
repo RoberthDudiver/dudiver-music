@@ -71,6 +71,8 @@ button { font-family: inherit; cursor: pointer; border: 0; background: none; col
     text-decoration: none; margin-right: 4px; transition: filter .15s; }
 .donate-btn:hover { filter: brightness(1.06); }
 .donate-btn svg { width: 15px; height: 15px; }
+label.ghost, label.pill { cursor: pointer; }
+.only-mobile { display: none; }
 
 /* Body */
 .body { display: grid; grid-template-columns: 288px 1fr; min-height: 0; }
@@ -318,6 +320,10 @@ input[type=range]::-moz-range-progress { background: var(--brand-h); height: 4px
     .miniplayer { display: grid; }
     .npfull { display: flex; }
     .icon-btn { width: 44px; height: 44px; }
+
+    /* Texto sin "arrastrá" en mobile */
+    .only-desktop { display: none; }
+    .only-mobile { display: inline; }
 
     /* Popups (idioma / salida) full-width abajo del header */
     .topbar-actions .pop { right: 8px; }

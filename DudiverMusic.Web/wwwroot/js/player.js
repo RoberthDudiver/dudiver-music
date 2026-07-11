@@ -52,30 +52,16 @@
         }
     }
 
-    function pickViaInput(attrs) {
-        return new Promise((resolve) => {
-            const inp = document.createElement('input');
-            inp.type = 'file';
-            inp.multiple = true;
-            inp.accept = 'audio/*,' + AUDIO_EXT.join(',');
-            for (const [k, v] of Object.entries(attrs || {})) inp.setAttribute(k, v);
-            inp.style.display = 'none';
-            document.body.appendChild(inp);
-            inp.addEventListener('change', () => {
-                const list = register(inp.files || []);
-                inp.remove();
-                resolve(list);
-            }, { once: true });
-            // cancelación: si el foco vuelve sin cambios, limpiar tras un rato
-            inp.click();
-        });
-    }
-
     window.dudiverPlayer = {
         init(ref) { dotnet = ref; ensureAudio(); },
 
-        pickFiles() { return pickViaInput(); },
-        pickFolder() { return pickViaInput({ webkitdirectory: '', directory: '' }); },
+        // Llamado por el onchange NATIVO de los <input type=file> (via <label>).
+        // Al ser nativo/sincrónico, no se pierde el gesto de usuario.
+        async onInputChange(input, isFolder) {
+            const list = register(input.files || []);
+            input.value = '';   // permitir re-elegir el mismo archivo
+            if (dotnet && list.length) await dotnet.invokeMethodAsync('OnFilesPicked', list, isFolder);
+        },
 
         attachDrop(el) {
             if (!el) return;

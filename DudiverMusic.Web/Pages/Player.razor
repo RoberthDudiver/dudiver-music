@@ -2,6 +2,12 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 
+<!-- Inputs reales de archivos: se disparan por <label for> (nativo, mantiene el gesto de usuario). -->
+<input id="dmFiles" type="file" multiple accept="audio/*,.mp3,.wav,.flac,.m4a,.aac,.ogg,.opus,.aiff"
+       style="display:none" onchange="dudiverPlayer.onInputChange(this, false)" />
+<input id="dmFolder" type="file" webkitdirectory directory
+       style="display:none" onchange="dudiverPlayer.onInputChange(this, true)" />
+
 <div class="app" @ref="appEl">
 
     <!-- ===== Top bar ===== -->
@@ -46,8 +52,8 @@
                 </div>
             </div>
             <div class="add-row">
-                <button class="ghost" @onclick="PickFolder" title="@T("TipAddFolder")">@Ico("folder") @T("Folder")</button>
-                <button class="ghost" @onclick="PickFiles" title="@T("TipAddFiles")">@Ico("music") @T("Files")</button>
+                <label class="ghost" for="dmFolder" title="@T("TipAddFolder")">@Ico("folder") @T("Folder")</label>
+                <label class="ghost" for="dmFiles" title="@T("TipAddFiles")">@Ico("music") @T("Files")</label>
             </div>
             <div class="playlists">
                 @foreach (var p in playlists)
@@ -115,11 +121,11 @@
                     <div class="glow"></div>
                     <div class="drop-in">
                         <img src="logo.png" alt="" />
-                        <h3>@T("DropTitle")</h3>
+                        <h3><span class="only-desktop">@T("DropTitle")</span><span class="only-mobile">@T("DropTitleMobile")</span></h3>
                         <p>@T("DropSubtitle")</p>
                         <div class="btns">
-                            <button class="pill" @onclick="PickFolder">@T("ChooseFolder")</button>
-                            <button class="ghost" style="height:40px;padding:0 18px" @onclick="PickFiles">@T("ChooseFiles")</button>
+                            <label class="pill" for="dmFolder">@T("ChooseFolder")</label>
+                            <label class="ghost" style="height:40px;padding:0 18px" for="dmFiles">@T("ChooseFiles")</label>
                         </div>
                         <div class="formats">MP3 · WAV · FLAC · M4A · AAC · OGG</div>
                     </div>
@@ -330,17 +336,10 @@
     }
 
     // ===== Cargar archivos / carpetas =====
-    async Task PickFiles()
-    {
-        var files = await JS.InvokeAsync<PickedFile[]>("dudiverPlayer.pickFiles");
-        await AddPicked(files, appendToSelected: true);
-    }
-
-    async Task PickFolder()
-    {
-        var files = await JS.InvokeAsync<PickedFile[]>("dudiverPlayer.pickFolder");
-        await AddPicked(files, appendToSelected: false);
-    }
+    // Carpeta → playlist nueva; Archivos → se agregan a la playlist seleccionada.
+    [JSInvokable]
+    public async Task OnFilesPicked(PickedFile[] files, bool isFolder)
+        => await AddPicked(files, appendToSelected: !isFolder);
 
     async Task AddPicked(PickedFile[] files, bool appendToSelected)
     {
@@ -559,6 +558,7 @@
         ["Folder"] = "Carpeta", ["Files"] = "Archivos", ["TipAddFolder"] = "Agregar una carpeta como playlist",
         ["TipAddFiles"] = "Agregar archivos a la playlist actual", ["TipRename"] = "Renombrar", ["TipDelete"] = "Eliminar",
         ["Playlist"] = "PLAYLIST", ["DropTitle"] = "Arrastrá una carpeta o archivos de música acá",
+        ["DropTitleMobile"] = "Elegí una carpeta o archivos de música",
         ["DropSubtitle"] = "Con una carpeta se crea una playlist con su nombre", ["ChooseFolder"] = "Elegir carpeta",
         ["ChooseFiles"] = "Elegir archivos", ["NothingPlaying"] = "Nada sonando", ["Shuffle"] = "Aleatorio",
         ["Previous"] = "Anterior", ["Next"] = "Siguiente", ["RepeatOff"] = "Repetir: desactivado",
@@ -583,6 +583,7 @@
         ["Folder"] = "Folder", ["Files"] = "Files", ["TipAddFolder"] = "Add a folder as a playlist",
         ["TipAddFiles"] = "Add files to the current playlist", ["TipRename"] = "Rename", ["TipDelete"] = "Delete",
         ["Playlist"] = "PLAYLIST", ["DropTitle"] = "Drag a music folder or files here",
+        ["DropTitleMobile"] = "Pick a music folder or files",
         ["DropSubtitle"] = "A folder becomes a playlist with its name", ["ChooseFolder"] = "Choose folder",
         ["ChooseFiles"] = "Choose files", ["NothingPlaying"] = "Nothing playing", ["Shuffle"] = "Shuffle",
         ["Previous"] = "Previous", ["Next"] = "Next", ["RepeatOff"] = "Repeat: off",
