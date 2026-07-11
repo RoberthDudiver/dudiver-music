@@ -148,18 +148,23 @@
         </div>
 
         <div class="vol">
-            <button class="icon-btn" title="@T("Output")" @onclick="ToggleDevicePopup">@Ico("speaker")</button>
+            <button class="icon-btn @(currentDeviceName is not null ? "on" : "")"
+                    title="@(currentDeviceName ?? T("Output"))" @onclick="OpenOutput">@Ico("speaker")</button>
             @if (showDevices)
             {
                 <div class="pop top" style="right:150px;">
                     <div class="pop-h">@T("Output")</div>
-                    @if (devices.Count == 0)
+                    @if (outputUnsupported)
+                    {
+                        <div class="pop-item" style="color:var(--muted)">@T("OutputUnsupported")</div>
+                    }
+                    else if (devices.Count == 0)
                     {
                         <div class="pop-item" style="color:var(--muted)">@T("NoDevices")</div>
                     }
                     @foreach (var d in devices)
                     {
-                        <button class="pop-item @(d.Id == currentDevice ? "sel" : "")" @onclick="() => SetDevice(d.Id)">
+                        <button class="pop-item @(d.Name == currentDeviceName ? "sel" : "")" @onclick="() => SetDevice(d.Id, d.Name)">
                             <span class="chk">@Ico("check")</span> @d.Name
                         </button>
                     }
@@ -216,9 +221,9 @@
     readonly Random rng = new();
 
     // Popups / dispositivos
-    bool showDevices, showLang, showAbout;
+    bool showDevices, showLang, showAbout, outputUnsupported;
     List<AudioDeviceInfo> devices = new();
-    string currentDevice = "";
+    string? currentDeviceName;
 
     // Interop
     ElementReference appEl;
@@ -408,19 +413,29 @@
     }
 
     // ===== Dispositivos de salida =====
-    async Task ToggleDevicePopup()
+    async Task OpenOutput()
     {
-        showDevices = !showDevices; showLang = false;
+        showLang = false;
+        // Preferir el selector NATIVO del navegador (no pide micrófono, IDs válidos).
+        if (await JS.InvokeAsync<bool>("dudiverPlayer.supportsPicker"))
+        {
+            var d = await JS.InvokeAsync<AudioDeviceInfo?>("dudiverPlayer.pickOutput");
+            if (d is not null) currentDeviceName = d.Name;
+            return;
+        }
+        // Fallback: lista enumerada + setSinkId.
+        showDevices = !showDevices;
         if (showDevices)
         {
-            devices = (await JS.InvokeAsync<AudioDeviceInfo[]>("dudiverPlayer.getDevices")).ToList();
-            if (devices.Count > 0 && !devices.Any(d => d.Id == "default"))
-                devices.Insert(0, new AudioDeviceInfo("default", T("SystemDefault")));
+            outputUnsupported = !await JS.InvokeAsync<bool>("dudiverPlayer.supportsSink");
+            devices = outputUnsupported
+                ? new()
+                : (await JS.InvokeAsync<AudioDeviceInfo[]>("dudiverPlayer.getDevices")).ToList();
         }
     }
-    async Task SetDevice(string id)
+    async Task SetDevice(string id, string name)
     {
-        currentDevice = id; showDevices = false;
+        currentDeviceName = name; showDevices = false;
         await JS.InvokeVoidAsync("dudiverPlayer.setSink", id);
     }
 
@@ -480,6 +495,7 @@
         ["Previous"] = "Anterior", ["Next"] = "Siguiente", ["RepeatOff"] = "Repetir: desactivado",
         ["RepeatAll"] = "Repetir la playlist", ["RepeatOne"] = "Repetir esta canción", ["Mute"] = "Silenciar",
         ["Output"] = "Salida de audio", ["NoDevices"] = "Sin dispositivos", ["SystemDefault"] = "Predeterminado del sistema",
+        ["OutputUnsupported"] = "Tu navegador no permite elegir la salida (usá Chrome o Edge).",
         ["MySongs"] = "Mis canciones", ["NewPlaylistName"] = "Nueva playlist",
         ["SongOne"] = "1 canción", ["SongMany"] = "{0} canciones",
         ["About"] = "Acerca de", ["Close"] = "Cerrar", ["Version"] = "Versión 1.0.0",
@@ -503,6 +519,7 @@
         ["Previous"] = "Previous", ["Next"] = "Next", ["RepeatOff"] = "Repeat: off",
         ["RepeatAll"] = "Repeat the playlist", ["RepeatOne"] = "Repeat this song", ["Mute"] = "Mute",
         ["Output"] = "Audio output", ["NoDevices"] = "No devices", ["SystemDefault"] = "System default",
+        ["OutputUnsupported"] = "Your browser can't pick the output (use Chrome or Edge).",
         ["MySongs"] = "My songs", ["NewPlaylistName"] = "New playlist",
         ["SongOne"] = "1 song", ["SongMany"] = "{0} songs",
         ["About"] = "About", ["Close"] = "Close", ["Version"] = "Version 1.0.0",

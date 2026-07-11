@@ -112,16 +112,32 @@
         seek(sec) { if (audio) audio.currentTime = sec; },
         setVolume(v) { ensureAudio(); audio.volume = Math.max(0, Math.min(1, v)); },
 
+        supportsSink() { ensureAudio(); return typeof audio.setSinkId === 'function'; },
+        supportsPicker() { return !!(navigator.mediaDevices && navigator.mediaDevices.selectAudioOutput); },
+
+        // Selector nativo (Chrome/Edge): abre el picker del sistema, otorga permiso
+        // para ESE dispositivo y enruta el audio ahí. No pide micrófono.
+        async pickOutput() {
+            ensureAudio();
+            try {
+                const dev = await navigator.mediaDevices.selectAudioOutput();
+                if (dev && dev.deviceId) {
+                    await audio.setSinkId(dev.deviceId);
+                    return { id: dev.deviceId, name: dev.label || 'Salida' };
+                }
+            } catch { /* cancelado o sin soporte */ }
+            return null;
+        },
+
+        // Fallback: lista de dispositivos (requiere permiso para tener IDs reales).
         async getDevices() {
             try {
-                // pedir permiso para ver nombres de dispositivos
                 try { const s = await navigator.mediaDevices.getUserMedia({ audio: true }); s.getTracks().forEach(t => t.stop()); } catch { }
                 const devs = await navigator.mediaDevices.enumerateDevices();
-                return devs.filter(d => d.kind === 'audiooutput')
+                return devs.filter(d => d.kind === 'audiooutput' && d.deviceId)
                     .map(d => ({ id: d.deviceId, name: d.label || 'Salida' }));
             } catch { return []; }
         },
-        supportsSink() { return !!(audio && typeof audio.setSinkId === 'function'); },
         async setSink(deviceId) {
             ensureAudio();
             if (typeof audio.setSinkId !== 'function') return false;
