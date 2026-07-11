@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <LangVersion>14</LangVersion>
+    <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
+    <AssemblyName>DudiverMusic</AssemblyName>
+    <RootNamespace>DudiverMusic</RootNamespace>
+    <Version>1.0.0</Version>
+    <Product>Dudiver Music</Product>
+    <Company>Roberth Dudiver</Company>
+    <Authors>Roberth Dudiver</Authors>
+    <Description>Reproductor de música moderno y sencillo. Arrastra una carpeta y suena.</Description>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+    <PackageReference Include="NAudio" Version="2.2.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\logo.png" />
+    <Content Include="Assets\icon.ico" />
+  </ItemGroup>
+
+</Project>

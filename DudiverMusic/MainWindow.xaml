@@ -1,0 +1,495 @@
+<Window x:Class="DudiverMusic.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:conv="clr-namespace:DudiverMusic.Converters"
+        xmlns:vm="clr-namespace:DudiverMusic.ViewModels"
+        xmlns:loc="clr-namespace:DudiverMusic.Localization"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        Title="Dudiver Music"
+        Height="720" Width="1160"
+        MinHeight="560" MinWidth="900"
+        WindowStartupLocation="CenterScreen"
+        WindowStyle="None"
+        AllowsTransparency="False"
+        Background="{DynamicResource BgDeep}"
+        AllowDrop="True"
+        Drop="OnDrop" DragEnter="OnDragEnter" DragLeave="OnDragLeave"
+        FontFamily="Segoe UI Variable Text, Segoe UI">
+
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="48" ResizeBorderThickness="6"
+                      CornerRadius="0" GlassFrameThickness="0" UseAeroCaptionButtons="False" />
+    </WindowChrome.WindowChrome>
+
+    <Window.Resources>
+        <conv:InverseBoolToVisibilityConverter x:Key="InvBoolVis" />
+        <conv:NullToVisibilityConverter x:Key="NullVis" />
+        <BooleanToVisibilityConverter x:Key="BoolVis" />
+
+        <!-- ===== Item de PLAYLIST (sidebar) ===== -->
+        <Style x:Key="PlaylistItem" TargetType="{x:Type ListBoxItem}">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0,1" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ListBoxItem}">
+                        <Border x:Name="bd" CornerRadius="10" Background="Transparent" Padding="12,9">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="4" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Barra de acento del seleccionado -->
+                                <Border x:Name="accent" Grid.Column="0" Width="3" HorizontalAlignment="Left"
+                                        CornerRadius="2" Background="{DynamicResource BrandGradient}"
+                                        Opacity="0" Margin="0,1" />
+
+                                <!-- Nombre + conteo -->
+                                <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
+                                    <TextBlock x:Name="nameText" Text="{Binding Name}" FontSize="14"
+                                               FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
+                                               Visibility="{Binding IsRenaming, Converter={StaticResource InvBoolVis}}" />
+                                    <TextBox x:Name="renameBox" Style="{StaticResource RenameTextBox}"
+                                             Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
+                                             Tag="{Binding}"
+                                             IsVisibleChanged="OnRenameVisible"
+                                             KeyDown="OnRenameKeyDown" LostFocus="OnRenameLostFocus"
+                                             Visibility="{Binding IsRenaming, Converter={StaticResource BoolVis}}" />
+                                    <TextBlock Text="{Binding TrackCountText}" FontSize="11.5"
+                                               Foreground="{DynamicResource TextMuted}" Margin="0,2,0,0"
+                                               Visibility="{Binding IsRenaming, Converter={StaticResource InvBoolVis}}" />
+                                </StackPanel>
+
+                                <!-- Acciones (hover): renombrar / eliminar -->
+                                <StackPanel x:Name="actions" Grid.Column="2" Orientation="Horizontal"
+                                            VerticalAlignment="Center" Opacity="0">
+                                    <Button Width="30" Height="30" FontSize="13" Style="{StaticResource IconButton}"
+                                            Content="&#xE70F;" ToolTip="{loc:Tr TipRename}"
+                                            Command="{Binding DataContext.StartRenameCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding}" />
+                                    <Button Width="30" Height="30" FontSize="13" Style="{StaticResource IconButton}"
+                                            Content="&#xE74D;" ToolTip="{loc:Tr TipDeletePlaylist}"
+                                            Command="{Binding DataContext.RemovePlaylistCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding}" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource BgElevated}" />
+                                <Setter TargetName="actions" Property="Opacity" Value="1" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource BgElevated}" />
+                                <Setter TargetName="accent" Property="Opacity" Value="1" />
+                                <Setter TargetName="nameText" Property="Foreground" Value="{DynamicResource Cyan}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ===== Item de CANCIÓN (lista principal) ===== -->
+        <Style x:Key="TrackItem" TargetType="{x:Type ListBoxItem}">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0,1" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ListBoxItem}">
+                        <Border x:Name="bd" CornerRadius="8" Background="Transparent" Padding="14,10"
+                                MouseLeftButtonDown="OnTrackClick">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="26" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Indicador play (hover / actual) -->
+                                <Grid Grid.Column="0" VerticalAlignment="Center">
+                                    <TextBlock x:Name="hoverPlay" FontFamily="Segoe MDL2 Assets"
+                                               Text="&#xE768;" FontSize="12"
+                                               Foreground="{DynamicResource TextMuted}"
+                                               HorizontalAlignment="Center" Opacity="0" />
+                                    <TextBlock x:Name="nowPlaying" FontFamily="Segoe MDL2 Assets"
+                                               Text="&#xE9D6;" FontSize="13"
+                                               Foreground="{DynamicResource Cyan}"
+                                               HorizontalAlignment="Center"
+                                               Visibility="{Binding IsCurrent, Converter={StaticResource BoolVis}}" />
+                                </Grid>
+
+                                <TextBlock x:Name="title" Grid.Column="1" Text="{Binding Title}"
+                                           FontSize="13.5" VerticalAlignment="Center" Margin="12,0,10,0"
+                                           TextTrimming="CharacterEllipsis" />
+
+                                <TextBlock Grid.Column="2" Text="{Binding DurationText}" FontSize="12.5"
+                                           Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource BgElevated}" />
+                                <Setter TargetName="hoverPlay" Property="Opacity" Value="1" />
+                            </Trigger>
+                            <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                                <Setter TargetName="title" Property="Foreground" Value="{DynamicResource Cyan}" />
+                                <Setter TargetName="title" Property="FontWeight" Value="SemiBold" />
+                                <Setter TargetName="hoverPlay" Property="Opacity" Value="0" />
+                            </DataTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ===== Item del selector de salida ===== -->
+        <Style x:Key="DeviceItem" TargetType="{x:Type ListBoxItem}">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0,1" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ListBoxItem}">
+                        <Border x:Name="bd" CornerRadius="8" Background="Transparent" Padding="10,8">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="20" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock x:Name="check" Grid.Column="0" FontFamily="Segoe MDL2 Assets"
+                                           Text="&#xE73E;" FontSize="13" Foreground="{DynamicResource Cyan}"
+                                           VerticalAlignment="Center" Opacity="0" />
+                                <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="13"
+                                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                           Margin="6,0,0,0" />
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource BgPanelAlt}" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="check" Property="Opacity" Value="1" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="48" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="98" />
+        </Grid.RowDefinitions>
+
+        <!-- ============================ TITLE BAR ============================ -->
+        <Grid Grid.Row="0" Background="{DynamicResource BgDeep}">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0,0,0">
+                <Image Source="Assets/logo.png" Width="26" Height="26" />
+                <TextBlock VerticalAlignment="Center" Margin="10,0,0,0" FontSize="14.5">
+                    <Run Text="Dudiver" FontWeight="Bold" />
+                    <Run Text="Music" Foreground="{DynamicResource Cyan}" FontWeight="SemiBold" />
+                </TextBlock>
+            </StackPanel>
+
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"
+                        shell:WindowChrome.IsHitTestVisibleInChrome="True">
+
+                <!-- Selector de idioma -->
+                <Grid VerticalAlignment="Center">
+                    <ToggleButton x:Name="LangBtn" Style="{StaticResource IconToggleButton}"
+                                  Width="46" Height="34" Content="&#xE774;" FontSize="15"
+                                  ToolTip="{loc:Tr TipLanguage}" />
+                    <Popup PlacementTarget="{Binding ElementName=LangBtn}" Placement="Bottom"
+                           StaysOpen="False" AllowsTransparency="True"
+                           IsOpen="{Binding IsChecked, ElementName=LangBtn, Mode=TwoWay}"
+                           HorizontalOffset="-150" VerticalOffset="4">
+                        <Border CornerRadius="12" Background="{DynamicResource BgElevated}"
+                                BorderBrush="{DynamicResource Stroke}" BorderThickness="1"
+                                Padding="8" Width="200">
+                            <Border.Effect>
+                                <DropShadowEffect Color="#000000" BlurRadius="18" ShadowDepth="4" Opacity="0.5" />
+                            </Border.Effect>
+                            <StackPanel>
+                                <TextBlock Text="{loc:Tr TipLanguage}" FontSize="10.5" FontWeight="Bold"
+                                           Foreground="{DynamicResource TextFaint}" Margin="8,4,0,6" />
+                                <ListBox ItemsSource="{Binding Languages}"
+                                         SelectedItem="{Binding SelectedLanguage, Mode=TwoWay}"
+                                         Background="Transparent" BorderThickness="0"
+                                         ItemContainerStyle="{StaticResource DeviceItem}" />
+                            </StackPanel>
+                        </Border>
+                    </Popup>
+                </Grid>
+
+                <Button x:Name="AboutBtn" Style="{StaticResource ChromeButton}" Content="&#xE946;"
+                        FontSize="15" ToolTip="{loc:Tr TipAbout}" Click="OnAboutClick" />
+                <Button x:Name="MinBtn" Style="{StaticResource ChromeButton}" Content="&#xE921;"
+                        ToolTip="{loc:Tr TipMinimize}" Click="OnMinimize" />
+                <Button x:Name="MaxBtn" Style="{StaticResource ChromeButton}" Content="&#xE922;"
+                        ToolTip="{loc:Tr TipMaximize}" Click="OnMaximize" />
+                <Button x:Name="CloseBtn" Style="{StaticResource CloseButton}" Content="&#xE8BB;"
+                        ToolTip="{loc:Tr TipClose}" Click="OnClose" />
+            </StackPanel>
+        </Grid>
+
+        <!-- ============================ CONTENIDO ============================ -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="272" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- SIDEBAR -->
+            <Border Grid.Column="0" Background="{DynamicResource BgPanelAlt}" CornerRadius="0">
+                <Grid Margin="14,8,10,12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <Grid Grid.Row="0" Margin="0,4,0,10">
+                        <TextBlock Text="{loc:Tr YourPlaylists}" FontSize="11" FontWeight="Bold"
+                                   Foreground="{DynamicResource TextFaint}" VerticalAlignment="Center"
+                                   Margin="4,0,0,0" />
+                        <Button HorizontalAlignment="Right" Style="{StaticResource IconButton}"
+                                Width="28" Height="28" FontSize="14" Content="&#xE710;"
+                                Command="{Binding NewPlaylistCommand}" ToolTip="{loc:Tr TipNewPlaylist}" />
+                    </Grid>
+
+                    <Grid Grid.Row="1" Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="8" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <Button Grid.Column="0" Style="{StaticResource GhostButton}"
+                                HorizontalAlignment="Stretch" Padding="0" Click="OnAddFolder"
+                                ToolTip="{loc:Tr TipAddFolder}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE8F4;" FontSize="13"
+                                           VerticalAlignment="Center" />
+                                <TextBlock Text="{loc:Tr Folder}" Margin="8,0,0,0" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+
+                        <Button Grid.Column="2" Style="{StaticResource GhostButton}"
+                                HorizontalAlignment="Stretch" Padding="0" Click="OnAddFiles"
+                                ToolTip="{loc:Tr TipAddFiles}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xEC4F;" FontSize="13"
+                                           VerticalAlignment="Center" />
+                                <TextBlock Text="{loc:Tr Files}" Margin="8,0,0,0" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+
+                    <ListBox Grid.Row="2" x:Name="PlaylistList"
+                             ItemsSource="{Binding Playlists}"
+                             SelectedItem="{Binding SelectedPlaylist, Mode=TwoWay}"
+                             ItemContainerStyle="{StaticResource PlaylistItem}"
+                             Background="Transparent" BorderThickness="0"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled" />
+                </Grid>
+            </Border>
+
+            <!-- ÁREA PRINCIPAL -->
+            <Grid Grid.Column="1" Background="{DynamicResource BgDeep}">
+
+                <!-- Contenido de la playlist seleccionada -->
+                <Grid Margin="28,20,20,8"
+                      Visibility="{Binding HasPlaylists, Converter={StaticResource BoolVis}}">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <!-- Encabezado -->
+                    <StackPanel Grid.Row="0" Margin="0,0,0,16"
+                                DataContext="{Binding SelectedPlaylist}">
+                        <TextBlock Text="{loc:Tr PlaylistEyebrow}" FontSize="11" FontWeight="Bold"
+                                   Foreground="{DynamicResource Magenta}" />
+                        <TextBlock Text="{Binding Name}" FontSize="30" FontWeight="Bold"
+                                   Margin="0,2,0,0" TextTrimming="CharacterEllipsis"
+                                   FontFamily="Segoe UI Variable Display, Segoe UI" />
+                        <TextBlock Text="{Binding TrackCountText}" FontSize="13"
+                                   Foreground="{DynamicResource TextMuted}" Margin="0,4,0,0" />
+                    </StackPanel>
+
+                    <!-- Lista de canciones -->
+                    <ListBox Grid.Row="1" x:Name="TrackList"
+                             ItemsSource="{Binding SelectedPlaylist.Tracks}"
+                             ItemContainerStyle="{StaticResource TrackItem}"
+                             Background="Transparent" BorderThickness="0"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled" />
+                </Grid>
+
+                <!-- Zona de DROP (sin playlists) -->
+                <Border Visibility="{Binding HasPlaylists, Converter={StaticResource InvBoolVis}}"
+                        Margin="40" CornerRadius="20">
+                    <Grid>
+                        <Ellipse Width="360" Height="360" Fill="{DynamicResource GlowGradient}"
+                                 Opacity="0.5" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                        <Border x:Name="DropHint" CornerRadius="20" Background="#0AFFFFFF"
+                                BorderBrush="{DynamicResource Stroke}" BorderThickness="1.5">
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                <Image Source="Assets/logo.png" Width="112" Height="112" Opacity="0.95" />
+                                <TextBlock Text="{loc:Tr DropTitle}"
+                                           FontSize="20" FontWeight="SemiBold" Margin="0,22,0,0"
+                                           HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" />
+                                <TextBlock Text="{loc:Tr DropSubtitle}"
+                                           FontSize="13.5" Foreground="{DynamicResource TextMuted}"
+                                           Margin="0,8,0,0" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" />
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,22,0,0">
+                                    <Button Style="{StaticResource PrimaryButton}" Content="{loc:Tr ChooseFolder}"
+                                            Click="OnAddFolder" />
+                                    <Button Style="{StaticResource GhostButton}" Content="{loc:Tr ChooseFiles}"
+                                            Height="40" Margin="10,0,0,0" Click="OnAddFiles" />
+                                </StackPanel>
+                                <TextBlock Text="MP3 · WAV · FLAC · M4A · AAC · WMA"
+                                           FontSize="11.5" Foreground="{DynamicResource TextFaint}"
+                                           Margin="0,20,0,0" HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
+
+        <!-- ============================ NOW PLAYING ============================ -->
+        <Border Grid.Row="2" Background="{DynamicResource BgDeep}" BorderThickness="0,1,0,0"
+                BorderBrush="{DynamicResource Stroke}">
+            <Grid Margin="20,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" MinWidth="180" />
+                    <ColumnDefinition Width="2.4*" />
+                    <ColumnDefinition Width="*" MinWidth="150" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Info de la canción actual -->
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding NowPlayingTitle}"
+                               FontSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{Binding SelectedPlaylist.Name}" FontSize="12"
+                               Foreground="{DynamicResource TextMuted}" TextTrimming="CharacterEllipsis"
+                               Margin="0,2,0,0" />
+                </StackPanel>
+
+                <!-- Controles + seek -->
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <ToggleButton x:Name="ShuffleBtn" IsChecked="{Binding IsShuffle}"
+                                      Style="{StaticResource IconToggleButton}" ToolTip="{loc:Tr TipShuffle}">
+                            <TextBlock Text="&#xE8B1;" FontFamily="Segoe MDL2 Assets" FontSize="16">
+                                <TextBlock.Style>
+                                    <Style TargetType="{x:Type TextBlock}">
+                                        <Setter Property="Foreground" Value="{DynamicResource TextMuted}" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsShuffle}" Value="True">
+                                                <Setter Property="Foreground" Value="{DynamicResource Cyan}" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </ToggleButton>
+                        <Button Style="{StaticResource TransportButton}" Content="&#xE892;"
+                                ToolTip="{loc:Tr TipPrevious}" Command="{Binding PreviousCommand}" />
+                        <Button Style="{StaticResource PlayButton}" Margin="10,0"
+                                Command="{Binding TogglePlayPauseCommand}">
+                            <TextBlock Text="{Binding PlayPauseGlyph}" FontFamily="Segoe MDL2 Assets"
+                                       FontSize="20" />
+                        </Button>
+                        <Button Style="{StaticResource TransportButton}" Content="&#xE893;"
+                                ToolTip="{loc:Tr TipNext}" Command="{Binding NextCommand}" />
+                        <Button x:Name="RepeatBtn" Style="{StaticResource IconButton}"
+                                Width="40" Height="40" Command="{Binding CycleRepeatCommand}"
+                                ToolTip="{Binding RepeatTooltip}">
+                            <TextBlock Text="{Binding RepeatGlyph}" FontFamily="Segoe MDL2 Assets" FontSize="16">
+                                <TextBlock.Style>
+                                    <Style TargetType="{x:Type TextBlock}">
+                                        <Setter Property="Foreground" Value="{DynamicResource TextMuted}" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsRepeatActive}" Value="True">
+                                                <Setter Property="Foreground" Value="{DynamicResource Cyan}" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </Button>
+                    </StackPanel>
+
+                    <Grid Margin="0,6,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="{Binding PositionText}" FontSize="11.5"
+                                   Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center"
+                                   Width="40" TextAlignment="Right" />
+                        <Slider Grid.Column="1" Style="{StaticResource NeonSlider}" Margin="10,0"
+                                Minimum="0" Maximum="{Binding DurationSeconds}"
+                                Value="{Binding PositionSeconds, Mode=TwoWay}"
+                                VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="2" Text="{Binding DurationText}" FontSize="11.5"
+                                   Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center"
+                                   Width="40" />
+                    </Grid>
+                </StackPanel>
+
+                <!-- Salida de audio + Volumen -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right"
+                            VerticalAlignment="Center">
+
+                    <!-- Selector de dispositivo de salida -->
+                    <Grid>
+                        <ToggleButton x:Name="DeviceBtn" Style="{StaticResource IconToggleButton}"
+                                      Content="&#xE7F5;" ToolTip="{loc:Tr TipOutput}"
+                                      Checked="OnDevicePopupOpen" />
+                        <Popup PlacementTarget="{Binding ElementName=DeviceBtn}" Placement="Top"
+                               StaysOpen="False" AllowsTransparency="True"
+                               IsOpen="{Binding IsChecked, ElementName=DeviceBtn, Mode=TwoWay}"
+                               HorizontalOffset="-150" VerticalOffset="-8">
+                            <Border CornerRadius="12" Background="{DynamicResource BgElevated}"
+                                    BorderBrush="{DynamicResource Stroke}" BorderThickness="1"
+                                    Padding="8" Width="300">
+                                <Border.Effect>
+                                    <DropShadowEffect Color="#000000" BlurRadius="18" ShadowDepth="4" Opacity="0.5" />
+                                </Border.Effect>
+                                <StackPanel>
+                                    <TextBlock Text="{loc:Tr OutputHeader}" FontSize="10.5" FontWeight="Bold"
+                                               Foreground="{DynamicResource TextFaint}" Margin="8,4,0,6" />
+                                    <ListBox ItemsSource="{Binding OutputDevices}"
+                                             SelectedItem="{Binding SelectedOutputDevice, Mode=TwoWay}"
+                                             Background="Transparent" BorderThickness="0"
+                                             ItemContainerStyle="{StaticResource DeviceItem}"
+                                             MaxHeight="240" />
+                                </StackPanel>
+                            </Border>
+                        </Popup>
+                    </Grid>
+
+                    <Button Style="{StaticResource IconButton}" Command="{Binding ToggleMuteCommand}"
+                            ToolTip="{loc:Tr TipMute}" Margin="2,0,0,0">
+                        <TextBlock Text="{Binding VolumeGlyph}" FontFamily="Segoe MDL2 Assets" FontSize="16" />
+                    </Button>
+                    <Slider Style="{StaticResource NeonSlider}" Width="100" Margin="6,0,0,0"
+                            Minimum="0" Maximum="1" SmallChange="0.05" LargeChange="0.1"
+                            Value="{Binding Volume, Mode=TwoWay}" VerticalAlignment="Center" />
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
