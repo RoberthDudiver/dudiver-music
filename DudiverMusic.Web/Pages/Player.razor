@@ -6,9 +6,12 @@
 
     <!-- ===== Top bar ===== -->
     <header class="topbar">
-        <div class="brand">
-            <img src="logo.png" alt="Dudiver Music" />
-            <h1><b>Dudiver</b> <span>Music</span></h1>
+        <div style="display:flex; align-items:center; gap:4px;">
+            <button class="chip hamburger" title="@T("YourPlaylists")" @onclick="() => showSidebar = true">@Ico("menu")</button>
+            <div class="brand">
+                <img src="logo.png" alt="Dudiver Music" />
+                <h1><b>Dudiver</b> <span>Music</span></h1>
+            </div>
         </div>
         <div class="topbar-actions">
             <button class="chip" title="@T("About")" @onclick="() => showAbout = true">@Ico("info")</button>
@@ -30,11 +33,14 @@
 
     <!-- ===== Body ===== -->
     <div class="body">
-        <!-- Sidebar -->
-        <aside class="side">
+        <!-- Sidebar / drawer -->
+        <aside class="side @(showSidebar ? "open" : "")">
             <div class="side-head">
                 <span class="lbl">@T("YourPlaylists")</span>
-                <button class="chip" style="width:28px;height:28px" title="@T("NewPlaylist")" @onclick="NewPlaylist">@Ico("plus")</button>
+                <div style="display:flex; gap:2px;">
+                    <button class="chip" style="width:28px;height:28px" title="@T("NewPlaylist")" @onclick="NewPlaylist">@Ico("plus")</button>
+                    <button class="chip drawer-close" style="width:28px;height:28px" title="@T("Close")" @onclick="() => showSidebar = false">@Ico("close")</button>
+                </div>
             </div>
             <div class="add-row">
                 <button class="ghost" @onclick="PickFolder" title="@T("TipAddFolder")">@Ico("folder") @T("Folder")</button>
@@ -68,6 +74,7 @@
                 }
             </div>
         </aside>
+        <div class="scrim @(showSidebar ? "show" : "")" @onclick="() => showSidebar = false"></div>
 
         <!-- Main -->
         <section class="main">
@@ -220,8 +227,8 @@
     int repeat; // 0 off, 1 all, 2 one
     readonly Random rng = new();
 
-    // Popups / dispositivos
-    bool showDevices, showLang, showAbout, outputUnsupported;
+    // Popups / dispositivos / drawer
+    bool showDevices, showLang, showAbout, outputUnsupported, showSidebar;
     List<AudioDeviceInfo> devices = new();
     string? currentDeviceName;
 
@@ -294,6 +301,7 @@
             selected = target;
         }
         target.Tracks.AddRange(tracks);
+        showSidebar = false;
         StateHasChanged();
     }
 
@@ -383,7 +391,7 @@
     string RepeatTip() => repeat switch { 1 => T("RepeatAll"), 2 => T("RepeatOne"), _ => T("RepeatOff") };
 
     // ===== Playlists =====
-    void Select(Playlist p) => selected = p;
+    void Select(Playlist p) { selected = p; showSidebar = false; }
 
     void NewPlaylist()
     {
@@ -391,6 +399,7 @@
         playlists.Add(p);
         selected = p;
         pendingFocusRename = true;
+        showSidebar = false;
     }
 
     bool pendingFocusRename;
@@ -478,6 +487,7 @@
         ["globe"] = "<circle cx='12' cy='12' r='9' stroke='currentColor' stroke-width='1.7'/><path d='M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18' stroke='currentColor' stroke-width='1.5' fill='none'/>",
         ["speaker"] = "<path d='M4 13v-1a8 8 0 0 1 16 0v1' stroke='currentColor' stroke-width='1.8'/><rect x='3' y='13' width='4' height='7' rx='2' stroke='currentColor' stroke-width='1.8'/><rect x='17' y='13' width='4' height='7' rx='2' stroke='currentColor' stroke-width='1.8'/>",
         ["check"] = "<path d='M4 12l5 5L20 6' stroke='currentColor' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/>",
+        ["menu"] = "<path d='M4 7h16M4 12h16M4 17h16' stroke='currentColor' stroke-width='2' stroke-linecap='round'/>",
         ["info"] = "<circle cx='12' cy='12' r='9' stroke='currentColor' stroke-width='1.7'/><path d='M12 11v5' stroke='currentColor' stroke-width='2' stroke-linecap='round'/><circle cx='12' cy='7.6' r='1.2' fill='currentColor'/>",
         ["close"] = "<path d='M6 6l12 12M18 6 6 18' stroke='currentColor' stroke-width='2' stroke-linecap='round'/>",
         ["heart"] = "<path d='M12 21s-7-4.4-9.4-8.8A5 5 0 0 1 12 6.1 5 5 0 0 1 21.4 12.2C19 16.6 12 21 12 21z' fill='currentColor'/>",
