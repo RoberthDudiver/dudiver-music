@@ -25,8 +25,9 @@ public sealed class Playlist
 public sealed class PickedFile
 {
     public string Id { get; set; } = "";
-    public string Name { get; set; } = "";
+    public string Name { get; set; } = "";     // sin extensión (para mostrar)
     public string Folder { get; set; } = "";
+    public string File { get; set; } = "";      // nombre real con extensión (para detectar formato)
 }
 
 public sealed record AudioDeviceInfo(string Id, string Name);

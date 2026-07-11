@@ -322,6 +322,11 @@
     </div>
 }
 
+@if (toast is not null)
+{
+    <div class="toast" @onclick="() => toast = null">@Ico("info") <span>@toast</span></div>
+}
+
 @code {
     // ===== Estado =====
     List<Playlist> playlists = new();
@@ -337,6 +342,21 @@
 
     // Popups / dispositivos / drawer / full-screen
     bool showDevices, showLang, showAbout, outputUnsupported, showSidebar, npExpanded;
+
+    // Avisos (toast)
+    string? toast;
+    int _toastId;
+    void Toast(string msg)
+    {
+        toast = msg;
+        var id = ++_toastId;
+        _ = DelayClearToast(id);
+    }
+    async Task DelayClearToast(int id)
+    {
+        await Task.Delay(5000);
+        if (_toastId == id) { toast = null; StateHasChanged(); }
+    }
     double SeekPct => duration > 0 ? Math.Clamp(position / duration * 100, 0, 100) : 0;
     // CSS invariante (la app puede correr en cultura con coma decimal → "18,4%" rompería el CSS/attr)
     string SeekCss => SeekPct.ToString("0.###", CultureInfo.InvariantCulture);
@@ -384,6 +404,27 @@
     [JSInvokable] public void OnPlayState(bool playing) { isPlaying = playing; StateHasChanged(); }
     [JSInvokable] public void OnEnded() => _ = TrackFinished();
 
+    int _playFailStreak;
+    // El navegador no pudo decodificar/cargar la pista (código 3=decode, 4=formato no soportado).
+    [JSInvokable]
+    public async Task OnAudioError(int code, string name)
+    {
+        isPlaying = false;
+        _playFailStreak++;
+        var list = playingList?.Tracks;
+        // Si venimos saltando y ya fallaron todas, paramos y avisamos (sin bucle infinito).
+        if (list is not null && _playFailStreak >= list.Count)
+        {
+            _playFailStreak = 0;
+            Toast(T("ErrAllFailed"));
+            StateHasChanged();
+            return;
+        }
+        Toast(string.Format(T("ErrUnplayable"), string.IsNullOrEmpty(name) ? (current?.Title ?? "") : name));
+        StateHasChanged();
+        await Advance(auto: true); // intenta la siguiente
+    }
+
     // Barra de progreso propia: JS envía la fracción (0..1) del click/arrastre.
     [JSInvokable]
     public async Task SeekFraction(double frac)
@@ -395,18 +436,16 @@
     }
 
     [JSInvokable]
-    public async Task OnFilesDropped(PickedFile[] files)
-    {
-        await AddPicked(files, appendToSelected: false);
-    }
+    public async Task OnFilesDropped(PickedFile[] files) => await AddPicked(files);
 
     // ===== Cargar archivos / carpetas =====
-    // Carpeta → playlist nueva; Archivos → se agregan a la playlist seleccionada.
+    // Regla simple y predecible: si hay una playlist seleccionada, se agrega a ella
+    // (sea archivos o carpeta). Si no hay ninguna, se crea una nueva. Para separar
+    // en otra playlist, el usuario toca "+" (crea una vacía) y luego agrega.
     [JSInvokable]
-    public async Task OnFilesPicked(PickedFile[] files, bool isFolder)
-        => await AddPicked(files, appendToSelected: !isFolder);
+    public async Task OnFilesPicked(PickedFile[] files, bool isFolder) => await AddPicked(files);
 
-    async Task AddPicked(PickedFile[] files, bool appendToSelected)
+    async Task AddPicked(PickedFile[] files)
     {
         if (files is null || files.Length == 0) return;
         var tracks = files.Select(f => new Track { Id = f.Id, Title = f.Name }).ToList();
@@ -415,19 +454,38 @@
         var folders = files.Select(f => f.Folder).Where(x => !string.IsNullOrEmpty(x)).Distinct().ToList();
         string suggested = folders.Count == 1 ? folders[0] : T("MySongs");
 
-        Playlist? target = appendToSelected ? selected : null;
+        Playlist? target = selected;
         if (target is null)
         {
             target = new Playlist { Name = suggested };
             playlists.Add(target);
             selected = target;
         }
+        else if (target.Tracks.Count == 0 && folders.Count == 1)
+        {
+            target.Name = suggested; // playlist vacía + carpeta → hereda el nombre de la carpeta
+        }
+        int added = tracks.Count;
         target.Tracks.AddRange(tracks);
         showSidebar = false;
+        Toast(string.Format(T(added == 1 ? "AddedOne" : "AddedMany"), added, target.Name));
         StateHasChanged();
         await Persist();
         _ = LoadDurations(tracks);   // en segundo plano
         _ = LoadTags(tracks);        // artista/álbum/carátula en segundo plano
+        _ = WarnUnsupported(files);  // avisa si hay formatos que el navegador no reproduce
+    }
+
+    // Avisa si el navegador no puede reproducir algunos formatos (ej. AIFF, WMA).
+    async Task WarnUnsupported(PickedFile[] files)
+    {
+        try
+        {
+            var names = files.Select(f => string.IsNullOrEmpty(f.File) ? f.Name : f.File).ToArray();
+            var bad = await JS.InvokeAsync<string[]>("dudiverPlayer.unsupported", new object[] { names });
+            if (bad.Length > 0) Toast(string.Format(T("WarnUnsupported"), bad.Length));
+        }
+        catch { }
     }
 
     // ===== Duraciones (en segundo plano) =====
@@ -520,7 +578,18 @@
         playingList = pl;
         current = t;
         position = 0; duration = t.DurationSeconds;
-        await JS.InvokeVoidAsync("dudiverPlayer.play", t.Id);
+        var status = await JS.InvokeAsync<string>("dudiverPlayer.play", t.Id, t.Title);
+        if (status != "ok")
+        {
+            isPlaying = false;
+            if (status == "missing")
+                Toast(string.Format(T("ErrMissing"), t.Title));
+            else // blocked: el navegador exige gesto del usuario
+                Toast(T("ErrBlocked"));
+            StateHasChanged();
+            return;
+        }
+        _playFailStreak = 0;
         isPlaying = true;
         StateHasChanged();
         await UpdateNowPlaying();
@@ -815,6 +884,12 @@
         ["Output"] = "Salida de audio", ["NoDevices"] = "Sin dispositivos", ["SystemDefault"] = "Predeterminado del sistema",
         ["OutputUnsupported"] = "Tu navegador no permite elegir la salida (usá Chrome o Edge).",
         ["MySongs"] = "Mis canciones", ["NewPlaylistName"] = "Nueva playlist", ["NowPlaying"] = "Sonando ahora",
+        ["AddedOne"] = "Se agregó 1 pista a «{1}»", ["AddedMany"] = "Se agregaron {0} pistas a «{1}»",
+        ["WarnUnsupported"] = "{0} archivo(s) en un formato que tu navegador no reproduce (probá MP3/M4A/WAV).",
+        ["ErrMissing"] = "No encontré el archivo de «{0}». Volvé a agregar la carpeta.",
+        ["ErrBlocked"] = "El navegador bloqueó la reproducción. Tocá play para empezar.",
+        ["ErrUnplayable"] = "No se pudo reproducir «{0}» (formato no soportado o archivo dañado). Salto a la siguiente.",
+        ["ErrAllFailed"] = "Ninguna pista se pudo reproducir. Suelen ser formatos no soportados (AIFF/WMA) — probá MP3.",
         ["SongOne"] = "1 canción", ["SongMany"] = "{0} canciones",
         ["SearchPh"] = "Buscar en la playlist…", ["NoResults"] = "Sin resultados", ["RemoveTrack"] = "Quitar de la playlist",
         ["DeleteTitle"] = "¿Eliminar playlist?", ["DeleteText"] = "Se va a eliminar «{0}». Esta acción no se puede deshacer.",
@@ -843,6 +918,12 @@
         ["Output"] = "Audio output", ["NoDevices"] = "No devices", ["SystemDefault"] = "System default",
         ["OutputUnsupported"] = "Your browser can't pick the output (use Chrome or Edge).",
         ["MySongs"] = "My songs", ["NewPlaylistName"] = "New playlist", ["NowPlaying"] = "Now playing",
+        ["AddedOne"] = "Added 1 track to “{1}”", ["AddedMany"] = "Added {0} tracks to “{1}”",
+        ["WarnUnsupported"] = "{0} file(s) in a format your browser can't play (try MP3/M4A/WAV).",
+        ["ErrMissing"] = "Couldn't find the file for “{0}”. Re-add the folder.",
+        ["ErrBlocked"] = "The browser blocked playback. Tap play to start.",
+        ["ErrUnplayable"] = "Couldn't play “{0}” (unsupported format or corrupt file). Skipping to next.",
+        ["ErrAllFailed"] = "No track could be played. Usually unsupported formats (AIFF/WMA) — try MP3.",
         ["SongOne"] = "1 song", ["SongMany"] = "{0} songs",
         ["SearchPh"] = "Search this playlist…", ["NoResults"] = "No results", ["RemoveTrack"] = "Remove from playlist",
         ["DeleteTitle"] = "Delete playlist?", ["DeleteText"] = "“{0}” will be deleted. This can't be undone.",

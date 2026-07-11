@@ -4,7 +4,7 @@
     const isAudio = (name) => AUDIO_EXT.some(e => name.toLowerCase().endsWith(e));
 
     const files = new Map();   // id -> File/Blob en memoria (cache)
-    let audio = null, dotnet = null, curUrl = null;
+    let audio = null, dotnet = null, curUrl = null, curName = '';
 
     // ===================== IndexedDB =====================
     let dbPromise = null;
@@ -45,6 +45,7 @@
         audio.addEventListener('timeupdate', () => dotnet && dotnet.invokeMethodAsync('OnTime', audio.currentTime || 0));
         audio.addEventListener('loadedmetadata', () => dotnet && dotnet.invokeMethodAsync('OnLoaded', audio.duration || 0));
         audio.addEventListener('ended', () => dotnet && dotnet.invokeMethodAsync('OnEnded'));
+        // 'stalled'/'suspend' son normales; solo reaccionamos a 'error' real (abajo).
         audio.addEventListener('play', () => {
             if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
             dotnet && dotnet.invokeMethodAsync('OnPlayState', true);
@@ -53,7 +54,12 @@
             if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
             dotnet && dotnet.invokeMethodAsync('OnPlayState', false);
         });
-        audio.addEventListener('error', () => dotnet && dotnet.invokeMethodAsync('OnEnded'));
+        audio.addEventListener('error', () => {
+            const e = audio.error;
+            const code = e ? e.code : 0; // 3=decode, 4=src no soportado/no cargable
+            console.error('[Dudiver] Error de audio', { code, message: e && e.message, track: curName });
+            if (dotnet) dotnet.invokeMethodAsync('OnAudioError', code, curName || '');
+        });
         return audio;
     }
 
@@ -72,7 +78,7 @@
             const id = fileId(f);
             files.set(id, f);
             try { await idbPut('blobs', id, f); } catch { /* quota u otro */ }
-            out.push({ id, name: f.name.replace(/\.[^.]+$/, ''), folder: (f.webkitRelativePath || '').split('/')[0] || '' });
+            out.push({ id, name: f.name.replace(/\.[^.]+$/, ''), folder: (f.webkitRelativePath || '').split('/')[0] || '', file: f.name });
         }
         out.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
         return out;
@@ -241,17 +247,46 @@
             return out;
         },
 
-        async play(id) {
+        // Devuelve 'ok' | 'missing' (no está el blob) | 'blocked' (el navegador rechazó play).
+        async play(id, name) {
+            curName = name || id;
             const b = await getBlob(id);
-            if (!b) return false;
+            if (!b) {
+                console.warn('[Dudiver] No encontré el audio en el almacenamiento local:', curName, '(id:', id, ')');
+                return 'missing';
+            }
             ensureAudio();
             if (curUrl) URL.revokeObjectURL(curUrl);
             curUrl = URL.createObjectURL(b);
             audio.src = curUrl;
-            audio.play().catch(() => { });
-            return true;
+            try {
+                await audio.play();
+                return 'ok';
+            } catch (e) {
+                // NotAllowedError = autoplay bloqueado (necesita gesto del usuario).
+                if (e && e.name === 'NotAllowedError') return 'blocked';
+                // Otro error (formato/archivo dañado): lo maneja el evento 'error' del audio
+                // (que dispara OnAudioError → aviso + saltar). No lo duplicamos acá.
+                console.error('[Dudiver] audio.play() rechazado:', e && e.name, e && e.message, 'track:', curName);
+                return 'ok';
+            }
         },
-        resume() { audio && audio.play().catch(() => { }); },
+        // ¿Puede este navegador reproducir este formato? (heurística por extensión)
+        canPlay(name) {
+            const el = ensureAudio();
+            const ext = (name.split('.').pop() || '').toLowerCase();
+            const map = {
+                mp3: 'audio/mpeg', m4a: 'audio/mp4', aac: 'audio/aac', wav: 'audio/wav',
+                ogg: 'audio/ogg', oga: 'audio/ogg', opus: 'audio/ogg; codecs=opus',
+                flac: 'audio/flac', aiff: 'audio/aiff', aif: 'audio/aiff'
+            };
+            const mime = map[ext];
+            return mime ? el.canPlayType(mime) !== '' : true; // desconocido: dejamos que intente
+        },
+        // De una lista de nombres, cuáles NO puede reproducir el navegador.
+        unsupported(names) { return (names || []).filter(n => !this.canPlay(n)); },
+
+        resume() { audio && audio.play().catch((e) => console.warn('[Dudiver] resume falló:', e && e.message)); },
         pause() { audio && audio.pause(); },
         seek(sec) { if (audio) audio.currentTime = sec; },
         setVolume(v) { ensureAudio(); audio.volume = Math.max(0, Math.min(1, v)); },
