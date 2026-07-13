@@ -262,6 +262,12 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 13px;
 input[type=range]::-moz-range-thumb { width: 13px; height: 13px; border: 0; border-radius: 50%; background: #fff; box-shadow: 0 0 8px rgba(34,211,238,.9); }
 input[type=range]::-moz-range-progress { background: var(--brand-h); height: 4px; border-radius: 2px; }
 
+/* Enlaces legales (About) */
+.legal-links { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 16px; font-size: 13px; }
+.legal-links a { color: var(--muted); text-decoration: none; }
+.legal-links a:hover { color: var(--cyan); text-decoration: underline; }
+.legal-links span { color: var(--muted); opacity: .5; }
+
 /* Banner de reconexión de carpetas (File System Access) */
 .reconnect-bar { display: flex; align-items: center; gap: 12px; margin: 0 0 16px; padding: 12px 16px;
     border-radius: 12px; background: linear-gradient(90deg, rgba(34,211,238,.14), rgba(168,85,247,.14));

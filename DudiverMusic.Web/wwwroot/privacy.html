@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Política de Privacidad — Dudiver Music</title>
+<meta name="description" content="Política de privacidad de Dudiver Music. No recopilamos datos personales; tu música nunca sale de tu dispositivo." />
+<link rel="canonical" href="https://app.music.dudiver.net/privacy" />
+<link rel="icon" type="image/png" href="logo.png" />
+<style>
+  :root { --bg:#0a0a12; --bg2:#12131f; --fg:#eef0fa; --muted:#a6a9bd; --cyan:#22d3ee; --purple:#a855f7; --line:rgba(255,255,255,.1); }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; line-height:1.6; }
+  .wrap { max-width:820px; margin:0 auto; padding:32px 22px 80px; }
+  header { display:flex; align-items:center; gap:12px; padding:14px 0 26px; border-bottom:1px solid var(--line); margin-bottom:28px; }
+  header img { width:44px; height:44px; border-radius:10px; }
+  header .b { font-weight:800; font-size:19px; }
+  header .b span { background:linear-gradient(90deg,var(--cyan),var(--purple)); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+  a.back { margin-left:auto; color:var(--cyan); text-decoration:none; font-size:14px; }
+  a.back:hover { text-decoration:underline; }
+  h1 { font-size:26px; margin:0 0 4px; }
+  .date { color:var(--muted); font-size:13.5px; margin-bottom:8px; }
+  h2 { font-size:19px; margin:34px 0 10px; padding-top:8px; }
+  h3 { font-size:15.5px; margin:20px 0 6px; color:var(--cyan); }
+  p, li { color:#dfe1ee; font-size:15px; }
+  ul { padding-left:20px; }
+  li { margin:5px 0; }
+  .lead { background:linear-gradient(90deg,rgba(34,211,238,.1),rgba(168,85,247,.1)); border:1px solid rgba(34,211,238,.3); border-radius:14px; padding:16px 18px; margin:8px 0 6px; }
+  .lead b { color:#fff; }
+  .langbar { display:flex; gap:8px; margin:0 0 22px; }
+  .langbar a { font-size:13px; color:var(--muted); border:1px solid var(--line); padding:5px 12px; border-radius:999px; text-decoration:none; }
+  .langbar a:hover { color:var(--fg); border-color:var(--cyan); }
+  section.lang { border-top:1px solid var(--line); margin-top:44px; padding-top:8px; }
+  a { color:var(--cyan); }
+  footer { margin-top:48px; padding-top:18px; border-top:1px solid var(--line); color:var(--muted); font-size:13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <img src="logo.png" alt="Dudiver Music" />
+    <span class="b">Dudiver <span>Music</span></span>
+    <a class="back" href="/">← Volver a la app</a>
+  </header>
+
+  <div class="langbar">
+    <a href="#es">Español</a>
+    <a href="#en">English</a>
+  </div>
+
+  <!-- ================= ESPAÑOL ================= -->
+  <div id="es">
+    <h1>Política de Privacidad</h1>
+    <div class="date">Última actualización: 13 de julio de 2026</div>
+
+    <div class="lead">
+      <b>Resumen simple:</b> Dudiver Music <b>no recopila datos personales</b> y <b>no sube tu música a ningún servidor</b>.
+      Tu música se lee y se reproduce localmente en tu dispositivo. No hay cuentas, no hay anuncios y no hay rastreadores.
+    </div>
+
+    <p>Esta política explica cómo Dudiver Music ("la app", "nosotros") trata la información cuando usás la versión web
+      (<a href="https://app.music.dudiver.net">app.music.dudiver.net</a>) o la aplicación de Windows. La app fue creada
+      por Roberth Dudiver.</p>
+
+    <h2>1. Qué información NO recopilamos</h2>
+    <ul>
+      <li>No pedimos ni almacenamos tu nombre, correo, teléfono ni ningún dato personal.</li>
+      <li>No creamos cuentas ni requerimos iniciar sesión.</li>
+      <li>No usamos publicidad, cookies de seguimiento ni rastreadores de terceros.</li>
+      <li>No enviamos tu música ni tus archivos a ningún servidor: <b>nunca salen de tu dispositivo</b>.</li>
+    </ul>
+
+    <h2>2. Tu música y tus archivos</h2>
+    <p>Vos elegís qué carpetas o archivos abrir. La app los <b>lee únicamente para reproducirlos en tu propio dispositivo</b>.
+      La reproducción ocurre localmente. No copiamos, subimos, compartimos ni analizamos tu música en la nube.</p>
+    <h3>Permiso de acceso a archivos</h3>
+    <ul>
+      <li><b>Web (Chrome/Edge):</b> usamos la API de acceso a archivos del navegador (File System Access) para leer las
+        carpetas que vos elegís. La app solo accede a lo que seleccionás; no explora otros archivos de tu equipo.</li>
+      <li><b>Windows:</b> la app lee los archivos de audio de las carpetas que agregás. No accede a otros archivos.</li>
+    </ul>
+
+    <h2>3. Datos que se guardan localmente</h2>
+    <p>Para que la app funcione y recuerde tus playlists, se guarda información <b>solo en tu dispositivo</b>:</p>
+    <ul>
+      <li><b>Web:</b> tus playlists, ajustes (volumen, idioma, salida de audio) y referencias a tus carpetas se guardan en
+        el almacenamiento del navegador (IndexedDB). Un Service Worker guarda los archivos de la app para que funcione
+        sin conexión. Podés borrar todo esto desde los ajustes de tu navegador.</li>
+      <li><b>Windows:</b> tus playlists y ajustes se guardan en tu perfil local (por ejemplo, <code>%LocalAppData%</code>).</li>
+    </ul>
+    <p>Nada de esto se transmite a nosotros ni a terceros.</p>
+
+    <h2>4. Enlaces y servicios de terceros</h2>
+    <ul>
+      <li><b>Donaciones (solo web):</b> el botón de donar te lleva a PayPal. Si donás, PayPal procesa el pago según su
+        propia política de privacidad; nosotros no recibimos tus datos de pago.</li>
+      <li><b>Redes sociales:</b> los enlaces (Instagram, TikTok, YouTube, GitHub) te llevan a sitios externos con sus
+        propias políticas.</li>
+      <li><b>Microsoft Store (Windows):</b> la instalación y actualización de la app la gestiona Microsoft, que puede
+        recopilar datos según su propia política. La app en sí no recopila nada.</li>
+    </ul>
+
+    <h2>5. Niños</h2>
+    <p>La app es segura para todo público y no recopila datos de nadie, incluidos menores.</p>
+
+    <h2>6. Cambios en esta política</h2>
+    <p>Si actualizamos esta política, cambiaremos la fecha de arriba. El uso continuado de la app implica la aceptación
+      de la versión vigente.</p>
+
+    <h2>7. Contacto</h2>
+    <p>Dudas sobre privacidad: <a href="mailto:rdudiver@gmail.com">rdudiver@gmail.com</a> ·
+      <a href="https://dudiver.net" target="_blank" rel="noopener">dudiver.net</a></p>
+  </div>
+
+  <!-- ================= ENGLISH ================= -->
+  <section class="lang" id="en">
+    <h1>Privacy Policy</h1>
+    <div class="date">Last updated: July 13, 2026</div>
+
+    <div class="lead">
+      <b>Simple summary:</b> Dudiver Music <b>does not collect personal data</b> and <b>does not upload your music to any server</b>.
+      Your music is read and played locally on your device. No accounts, no ads, no trackers.
+    </div>
+
+    <p>This policy explains how Dudiver Music ("the app", "we") handles information when you use the web version
+      (<a href="https://app.music.dudiver.net">app.music.dudiver.net</a>) or the Windows application. The app was created
+      by Roberth Dudiver.</p>
+
+    <h2>1. Information we do NOT collect</h2>
+    <ul>
+      <li>We do not ask for or store your name, email, phone number, or any personal data.</li>
+      <li>We do not create accounts or require sign-in.</li>
+      <li>We do not use advertising, tracking cookies, or third-party trackers.</li>
+      <li>We do not send your music or files to any server: <b>they never leave your device</b>.</li>
+    </ul>
+
+    <h2>2. Your music and files</h2>
+    <p>You choose which folders or files to open. The app <b>reads them only to play them on your own device</b>.
+      Playback happens locally. We do not copy, upload, share, or analyze your music in the cloud.</p>
+    <h3>File access permission</h3>
+    <ul>
+      <li><b>Web (Chrome/Edge):</b> we use the browser's File System Access API to read the folders you choose. The app
+        only accesses what you select; it does not browse other files on your computer.</li>
+      <li><b>Windows:</b> the app reads audio files from the folders you add. It does not access other files.</li>
+    </ul>
+
+    <h2>3. Data stored locally</h2>
+    <p>So the app works and remembers your playlists, some information is stored <b>only on your device</b>:</p>
+    <ul>
+      <li><b>Web:</b> your playlists, settings (volume, language, audio output) and references to your folders are stored
+        in the browser's storage (IndexedDB). A Service Worker caches the app's files for offline use. You can clear all
+        of this from your browser settings.</li>
+      <li><b>Windows:</b> your playlists and settings are stored in your local profile (e.g. <code>%LocalAppData%</code>).</li>
+    </ul>
+    <p>None of this is transmitted to us or to third parties.</p>
+
+    <h2>4. Third-party links and services</h2>
+    <ul>
+      <li><b>Donations (web only):</b> the donate button takes you to PayPal. If you donate, PayPal processes the payment
+        under its own privacy policy; we do not receive your payment details.</li>
+      <li><b>Social media:</b> the links (Instagram, TikTok, YouTube, GitHub) go to external sites with their own policies.</li>
+      <li><b>Microsoft Store (Windows):</b> installation and updates are handled by Microsoft, which may collect data under
+        its own policy. The app itself collects nothing.</li>
+    </ul>
+
+    <h2>5. Children</h2>
+    <p>The app is safe for all audiences and does not collect data from anyone, including minors.</p>
+
+    <h2>6. Changes to this policy</h2>
+    <p>If we update this policy, we will change the date above. Continued use of the app implies acceptance of the current version.</p>
+
+    <h2>7. Contact</h2>
+    <p>Privacy questions: <a href="mailto:rdudiver@gmail.com">rdudiver@gmail.com</a> ·
+      <a href="https://dudiver.net" target="_blank" rel="noopener">dudiver.net</a></p>
+  </section>
+
+  <footer>
+    © 2026 Roberth Dudiver — Dudiver Music · <a href="/terms">Términos / Terms</a> · <a href="/">app.music.dudiver.net</a>
+  </footer>
+</div>
+</body>
+</html>
