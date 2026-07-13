@@ -54,7 +54,14 @@
                 </div>
             </div>
             <div class="add-row">
-                <label class="ghost pick-folder" for="dmFolder" title="@T("TipAddFolder")">@Ico("folder") @T("Folder")</label>
+                @if (fsaSupported)
+                {
+                    <button type="button" class="ghost pick-folder pick-folder-native" title="@T("TipAddFolderFsa")">@Ico("folder") @T("Folder")</button>
+                }
+                else
+                {
+                    <label class="ghost pick-folder" for="dmFolder" title="@T("TipAddFolder")">@Ico("folder") @T("Folder")</label>
+                }
                 <label class="ghost" for="dmFiles" title="@T("TipAddFiles")">@Ico("music") @T("Files")</label>
             </div>
             <div class="playlists">
@@ -89,6 +96,14 @@
 
         <!-- Main -->
         <section class="main">
+            @if (reconnectCount > 0)
+            {
+                <div class="reconnect-bar">
+                    @Ico("folder")
+                    <span>@T("ReconnectMsg")</span>
+                    <button type="button" class="reconnect-dirs">@T("ReconnectBtn")</button>
+                </div>
+            }
             @if (selected is not null)
             {
                 <div class="plview">
@@ -343,6 +358,27 @@
     // Popups / dispositivos / drawer / full-screen
     bool showDevices, showLang, showAbout, outputUnsupported, showSidebar, npExpanded;
 
+    // File System Access (biblioteca real leída del disco)
+    bool fsaSupported;
+    int reconnectCount; // carpetas que necesitan re-otorgar permiso tras recargar
+    async Task CheckReconnect()
+    {
+        if (!fsaSupported) return;
+        try { reconnectCount = await JS.InvokeAsync<int>("dudiverPlayer.dirsNeedingPermission"); } catch { reconnectCount = 0; }
+    }
+    [JSInvokable]
+    public async Task OnDirsReconnected(int granted)
+    {
+        await CheckReconnect();
+        if (reconnectCount == 0)
+        {
+            Toast(T("Reconnected"));
+            // refresca duraciones/carátulas de pistas que quedaron sin metadatos
+            foreach (var pl in playlists) _ = LoadDurations(pl.Tracks);
+        }
+        StateHasChanged();
+    }
+
     // Avisos (toast)
     string? toast;
     int _toastId;
@@ -382,8 +418,11 @@
             await JS.InvokeVoidAsync("dudiverPlayer.init", selfRef);
             await JS.InvokeVoidAsync("dudiverPlayer.attachDrop", appEl);
             jsReady = true;
+            fsaSupported = await JS.InvokeAsync<bool>("dudiverPlayer.supportsFsa");
             await LoadLibrary();
             await JS.InvokeVoidAsync("dudiverPlayer.setVolume", volume);
+            await CheckReconnect();
+            StateHasChanged();
         }
         if (pendingFocusRename)
         {
@@ -604,6 +643,12 @@
             isPlaying = false;
             if (status == "missing")
                 Toast(string.Format(T("ErrMissing"), t.Title));
+            else if (status == "locked")
+            {
+                // La carpeta perdió el permiso (tras recargar). Mostrar el aviso para reconectar.
+                await CheckReconnect();
+                Toast(T("ErrLocked"));
+            }
             else // blocked: el navegador exige gesto del usuario
                 Toast(T("ErrBlocked"));
             StateHasChanged();
@@ -827,6 +872,10 @@
         await Persist();
         var keep = playlists.SelectMany(p => p.Tracks.Select(t => t.Id)).Distinct().ToArray();
         try { await JS.InvokeVoidAsync("dudiverPlayer.pruneBlobs", keep); } catch { }
+        // Handles de carpeta en uso (ids "H:<dirId>:<ruta>").
+        var dirIds = keep.Where(id => id.StartsWith("H:")).Select(id => id.Split(':')[1]).Distinct().ToArray();
+        try { await JS.InvokeVoidAsync("dudiverPlayer.pruneDirs", dirIds); } catch { }
+        await CheckReconnect();
     }
 
     // ===== Dispositivos de salida =====
@@ -908,6 +957,11 @@
     {
         ["Language"] = "Idioma", ["YourPlaylists"] = "TUS PLAYLISTS", ["NewPlaylist"] = "Nueva playlist",
         ["Folder"] = "Carpeta", ["Files"] = "Archivos", ["TipAddFolder"] = "Agregar una carpeta como playlist",
+        ["TipAddFolderFsa"] = "Agregar una carpeta (se lee del disco, sin copiar; recuerda la carpeta)",
+        ["ReconnectMsg"] = "Recargaste la página: reconectá tus carpetas para volver a reproducir.",
+        ["ReconnectBtn"] = "Reconectar carpetas",
+        ["Reconnected"] = "Carpetas reconectadas ✓",
+        ["ErrLocked"] = "Necesito permiso para leer la carpeta. Tocá «Reconectar carpetas».",
         ["TipAddFiles"] = "Agregar archivos a la playlist actual", ["TipRename"] = "Renombrar", ["TipDelete"] = "Eliminar",
         ["Playlist"] = "PLAYLIST", ["DropTitle"] = "Arrastrá una carpeta o archivos de música acá",
         ["DropTitleMobile"] = "Elegí una carpeta o archivos de música",
@@ -942,6 +996,11 @@
     {
         ["Language"] = "Language", ["YourPlaylists"] = "YOUR PLAYLISTS", ["NewPlaylist"] = "New playlist",
         ["Folder"] = "Folder", ["Files"] = "Files", ["TipAddFolder"] = "Add a folder as a playlist",
+        ["TipAddFolderFsa"] = "Add a folder (read from disk, no copy; remembers the folder)",
+        ["ReconnectMsg"] = "You reloaded the page: reconnect your folders to play again.",
+        ["ReconnectBtn"] = "Reconnect folders",
+        ["Reconnected"] = "Folders reconnected ✓",
+        ["ErrLocked"] = "I need permission to read the folder. Tap “Reconnect folders”.",
         ["TipAddFiles"] = "Add files to the current playlist", ["TipRename"] = "Rename", ["TipDelete"] = "Delete",
         ["Playlist"] = "PLAYLIST", ["DropTitle"] = "Drag a music folder or files here",
         ["DropTitleMobile"] = "Pick a music folder or files",

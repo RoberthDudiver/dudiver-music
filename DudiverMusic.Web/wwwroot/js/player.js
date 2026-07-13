@@ -11,11 +11,13 @@
     function db() {
         if (dbPromise) return dbPromise;
         dbPromise = new Promise((resolve, reject) => {
-            const r = indexedDB.open('dudiver-music', 1);
+            const r = indexedDB.open('dudiver-music', 2);
             r.onupgradeneeded = () => {
                 const d = r.result;
                 if (!d.objectStoreNames.contains('blobs')) d.createObjectStore('blobs');
                 if (!d.objectStoreNames.contains('meta')) d.createObjectStore('meta');
+                // 'dirs': handles de carpeta (File System Access) -> leer del disco sin copiar los bytes.
+                if (!d.objectStoreNames.contains('dirs')) d.createObjectStore('dirs');
             };
             r.onsuccess = () => resolve(r.result);
             r.onerror = () => reject(r.error);
@@ -36,6 +38,57 @@
 
     // id estable por archivo (mismo archivo -> mismo id -> sin duplicados, persiste)
     const fileId = (f) => `${f.name}|${f.size}|${f.lastModified}`;
+
+    // ===================== File System Access (leer del disco sin copiar) =====================
+    const fsaSupported = () => typeof window.showDirectoryPicker === 'function';
+
+    // Un track basado en handle se identifica con `H:<dirId>:<ruta/relativa>`.
+    const isHandleId = (id) => typeof id === 'string' && id.startsWith('H:');
+    function splitHandleId(id) {
+        const i1 = id.indexOf(':'), i2 = id.indexOf(':', i1 + 1);
+        return { dirId: id.slice(i1 + 1, i2), rel: id.slice(i2 + 1) };
+    }
+
+    async function ensurePerm(dh, canPrompt) {
+        if (!dh || !dh.queryPermission) return 'granted';
+        let p = await dh.queryPermission({ mode: 'read' });
+        if (p === 'granted' || !canPrompt) return p;
+        try { p = await dh.requestPermission({ mode: 'read' }); } catch { }
+        return p;
+    }
+
+    // Resuelve el FileHandle recorriendo subcarpetas por la ruta relativa.
+    async function resolvePath(dh, rel) {
+        try {
+            const parts = rel.split('/');
+            let cur = dh;
+            for (let i = 0; i < parts.length - 1; i++) cur = await cur.getDirectoryHandle(parts[i]);
+            return await cur.getFileHandle(parts[parts.length - 1]);
+        } catch { return null; }
+    }
+
+    // Recorre recursivamente una carpeta y arma los tracks (sin leer los bytes todavía).
+    async function walkDir(dirHandle, dirId, rootName, prefix, out) {
+        for await (const entry of dirHandle.values()) {
+            const rel = prefix ? prefix + '/' + entry.name : entry.name;
+            if (entry.kind === 'file') {
+                if (isAudio(entry.name))
+                    out.push({ id: `H:${dirId}:${rel}`, name: entry.name.replace(/\.[^.]+$/, ''), folder: rootName, file: entry.name });
+            } else if (entry.kind === 'directory') {
+                await walkDir(entry, dirId, rootName, rel, out);
+            }
+        }
+    }
+
+    // Registra un directorio (guarda su handle) y devuelve los tracks encontrados.
+    async function registerDir(dirHandle) {
+        const dirId = `d_${(dirHandle.name || 'dir').replace(/[^\w-]/g, '_')}_${Date.now()}_${Math.floor(Math.random() * 1e6)}`;
+        await idbPut('dirs', dirId, dirHandle);
+        const out = [];
+        try { await walkDir(dirHandle, dirId, dirHandle.name || '', '', out); } catch (e) { console.warn('[Dudiver] error recorriendo carpeta:', e && e.message); }
+        out.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+        return out;
+    }
 
     // ===================== Audio =====================
     function ensureAudio() {
@@ -63,8 +116,22 @@
         return audio;
     }
 
-    async function getBlob(id) {
+    // Devuelve el File/Blob de un track. Para ids `H:` lo lee del disco vía el handle.
+    // canPrompt=true permite pedir permiso (solo válido dentro de un gesto del usuario).
+    async function getBlob(id, canPrompt) {
         if (files.has(id)) return files.get(id);
+        if (isHandleId(id)) {
+            const { dirId, rel } = splitHandleId(id);
+            const dh = await idbGet('dirs', dirId);
+            if (!dh) return null;
+            const perm = await ensurePerm(dh, canPrompt);
+            if (perm !== 'granted') return null; // el caller mostrará "reconectar carpetas"
+            const fh = await resolvePath(dh, rel);
+            if (!fh) return null;
+            const f = await fh.getFile();
+            files.set(id, f);
+            return f;
+        }
         const b = await idbGet('blobs', id);
         if (b) files.set(id, b);
         return b;
@@ -157,6 +224,17 @@
                 if (k) { e.preventDefault(); dotnet && dotnet.invokeMethodAsync('OnKey', k); }
             });
 
+            // File System Access: el selector de carpeta y el "reconectar" DEBEN correr dentro
+            // de un gesto real del usuario. Delegación nativa (no vía Blazor, que pierde el gesto).
+            document.addEventListener('click', (e) => {
+                const t = e.target && e.target.closest ? e.target : null;
+                if (t && t.closest('.pick-folder-native')) { e.preventDefault(); window.dudiverPlayer.addDirectory(); }
+                else if (t && t.closest('.reconnect-dirs')) {
+                    e.preventDefault();
+                    window.dudiverPlayer.reconnectDirs().then((n) => dotnet && dotnet.invokeMethodAsync('OnDirsReconnected', n));
+                }
+            });
+
             // Barra de progreso propia: click + arrastre (delegación global, sirve para todas las .seek2)
             const seekFrac = (bar, clientX) => {
                 const r = bar.getBoundingClientRect();
@@ -211,6 +289,49 @@
             if (dotnet && list.length) await dotnet.invokeMethodAsync('OnFilesPicked', list, isFolder);
         },
 
+        // ===== File System Access (biblioteca real, lee del disco) =====
+        supportsFsa() { return fsaSupported(); },
+
+        // Elegí una carpeta con el selector nativo (se llama desde un gesto real).
+        // Guarda el handle y agrega los tracks sin copiar los bytes.
+        async addDirectory() {
+            if (!fsaSupported()) return;
+            let dh;
+            try { dh = await window.showDirectoryPicker({ id: 'dudiver-music', mode: 'read' }); }
+            catch { return; } // el usuario canceló
+            const tracks = await registerDir(dh);
+            if (dotnet && tracks.length) await dotnet.invokeMethodAsync('OnFilesPicked', tracks, true);
+        },
+
+        // ¿Cuántas carpetas guardadas necesitan re-otorgar permiso (tras recargar)?
+        async dirsNeedingPermission() {
+            if (!fsaSupported()) return 0;
+            try {
+                const keys = await idb('dirs', 'readonly', s => s.getAllKeys());
+                let n = 0;
+                for (const k of keys || []) {
+                    const dh = await idbGet('dirs', k);
+                    if (dh && (await ensurePerm(dh, false)) !== 'granted') n++;
+                }
+                return n;
+            } catch { return 0; }
+        },
+
+        // Re-otorga permiso a todas las carpetas (se llama desde un gesto real).
+        // Devuelve cuántas quedaron concedidas.
+        async reconnectDirs() {
+            if (!fsaSupported()) return 0;
+            let ok = 0;
+            try {
+                const keys = await idb('dirs', 'readonly', s => s.getAllKeys());
+                for (const k of keys || []) {
+                    const dh = await idbGet('dirs', k);
+                    if (dh && (await ensurePerm(dh, true)) === 'granted') ok++;
+                }
+            } catch { }
+            return ok;
+        },
+
         attachDrop(el) {
             if (!el) return;
             const stop = (e) => { e.preventDefault(); e.stopPropagation(); };
@@ -219,6 +340,26 @@
             el.addEventListener('drop', async (e) => {
                 stop(e); el.classList.remove('over');
                 const items = e.dataTransfer && e.dataTransfer.items;
+
+                // Preferir handles (File System Access) para carpetas: biblioteca real sin copiar bytes.
+                if (fsaSupported() && items && items.length && items[0].getAsFileSystemHandle) {
+                    // getAsFileSystemHandle debe llamarse antes de cualquier await (el DataTransfer se invalida).
+                    const proms = [];
+                    for (const it of items) if (it.getAsFileSystemHandle) proms.push(it.getAsFileSystemHandle());
+                    const handles = await Promise.all(proms.map(p => p.catch(() => null)));
+                    const list = [];
+                    const looseFiles = [];
+                    for (const h of handles) {
+                        if (!h) continue;
+                        if (h.kind === 'directory') list.push(...await registerDir(h));
+                        else if (h.kind === 'file') { try { const f = await h.getFile(); if (isAudio(f.name)) looseFiles.push(f); } catch { } }
+                    }
+                    if (looseFiles.length) list.push(...await register(looseFiles));
+                    if (dotnet && list.length) await dotnet.invokeMethodAsync('OnFilesDropped', list);
+                    return;
+                }
+
+                // Fallback: leer entradas y guardar blobs (comportamiento clásico).
                 const acc = [];
                 if (items && items.length && items[0].webkitGetAsEntry) {
                     const entries = [];
@@ -247,11 +388,15 @@
             return out;
         },
 
-        // Devuelve 'ok' | 'missing' (no está el blob) | 'blocked' (el navegador rechazó play).
+        // Devuelve 'ok' | 'missing' | 'locked' (carpeta sin permiso) | 'blocked'.
         async play(id, name) {
             curName = name || id;
-            const b = await getBlob(id);
+            const b = await getBlob(id, true); // true: intentar pedir permiso (si el gesto sobrevive)
             if (!b) {
+                if (isHandleId(id)) {
+                    console.warn('[Dudiver] Carpeta sin permiso o archivo movido:', curName);
+                    return 'locked';
+                }
                 console.warn('[Dudiver] No encontré el audio en el almacenamiento local:', curName, '(id:', id, ')');
                 return 'missing';
             }
@@ -325,6 +470,14 @@
                     };
                     tx.oncomplete = resolve; tx.onerror = resolve;
                 });
+            } catch { }
+        },
+        // Borra handles de carpeta que ya no usa ninguna playlist (evita pedir reconectar de más).
+        async pruneDirs(keepDirIds) {
+            try {
+                const keep = new Set(keepDirIds || []);
+                const dkeys = await idb('dirs', 'readonly', s => s.getAllKeys());
+                for (const k of dkeys || []) if (!keep.has(k)) await idbDel('dirs', k);
             } catch { }
         },
 
