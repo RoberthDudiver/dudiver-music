@@ -393,9 +393,11 @@
     }
 
     // ===== Callbacks desde JS =====
-    [JSInvokable] public void OnTime(double t) { position = double.IsFinite(t) ? t : 0; StateHasChanged(); }
+    [JSInvokable] public void OnTime(double t) { if (current is null) return; position = double.IsFinite(t) ? t : 0; StateHasChanged(); }
     [JSInvokable] public void OnLoaded(double d)
     {
+        if (current is null) return; // se paró/borró la pista antes de cargar
+
         // MP3 VBR pueden reportar Infinity/NaN → usar la duración ya leída del archivo.
         duration = double.IsFinite(d) && d > 0 ? d : (current?.DurationSeconds ?? 0);
         if (current is not null && double.IsFinite(d) && d > 0) current.DurationSeconds = d;
@@ -781,7 +783,10 @@
         if (toDelete is null) return;
         playlists.Remove(toDelete);
         if (selected == toDelete) { selected = playlists.FirstOrDefault(); search = ""; }
+        // Si se está reproduciendo algo de la playlist borrada, parar.
+        if (playingList == toDelete) await StopPlayback();
         toDelete = null;
+        StateHasChanged();
         await PersistAndPrune();
     }
 
@@ -790,8 +795,19 @@
     {
         if (selected is null) return;
         selected.Tracks.Remove(t);
-        if (current == t) { current = null; isPlaying = false; }
+        // Si es la pista que suena, parar el audio y limpiar el estado (si no, queda
+        // apuntando a un blob que además se borra en el prune → error).
+        if (current == t) await StopPlayback();
+        StateHasChanged();
         await PersistAndPrune();
+    }
+
+    // Para la reproducción y limpia todo el estado de "sonando".
+    async Task StopPlayback()
+    {
+        try { await JS.InvokeVoidAsync("dudiverPlayer.stop"); } catch { }
+        current = null; playingList = null; isPlaying = false;
+        position = 0; duration = 0; currentArtUrl = null;
     }
 
     // Reordenar por drag

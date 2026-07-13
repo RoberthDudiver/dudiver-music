@@ -288,6 +288,18 @@
 
         resume() { audio && audio.play().catch((e) => console.warn('[Dudiver] resume falló:', e && e.message)); },
         pause() { audio && audio.pause(); },
+        // Para del todo: corta el sonido y suelta el recurso (al borrar la pista actual).
+        stop() {
+            if (audio) audio.pause();
+            if (curUrl) { URL.revokeObjectURL(curUrl); curUrl = null; }
+            curName = '';
+            try {
+                if ('mediaSession' in navigator) {
+                    navigator.mediaSession.metadata = null;
+                    navigator.mediaSession.playbackState = 'none';
+                }
+            } catch { }
+        },
         seek(sec) { if (audio) audio.currentTime = sec; },
         setVolume(v) { ensureAudio(); audio.volume = Math.max(0, Math.min(1, v)); },
 

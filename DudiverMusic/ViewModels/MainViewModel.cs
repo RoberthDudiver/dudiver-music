@@ -244,7 +244,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private void RemoveTrack(TrackViewModel? t)
     {
         if (t is null || SelectedPlaylist is null) return;
+        bool wasCurrent = t == CurrentTrack;
         SelectedPlaylist.RemoveTrack(t);
+        // Si borramos la pista que suena, parar (si no, queda apuntando a algo que ya no está).
+        if (wasCurrent) StopPlayback();
         Persist();
     }
 
@@ -452,8 +455,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private void RemovePlaylist(PlaylistViewModel? pl)
     {
         if (pl is null) return;
+        bool wasPlayingThis = _playingPlaylist == pl;
         Playlists.Remove(pl);
         if (SelectedPlaylist == pl) SelectedPlaylist = Playlists.FirstOrDefault();
+        if (wasPlayingThis) StopPlayback();
         OnPropertyChanged(nameof(HasPlaylists));
         Persist();
     }
@@ -540,6 +545,17 @@ public partial class MainViewModel : ObservableObject, IDisposable
     }
 
     // ===================== Helpers =====================
+
+    /// <summary>Para la reproducción y limpia el estado de "sonando".</summary>
+    private void StopPlayback()
+    {
+        _player.Stop();
+        if (CurrentTrack is not null) { CurrentTrack.IsCurrent = false; CurrentTrack.IsPlaying = false; }
+        CurrentTrack = null;
+        _playingPlaylist = null;
+        PositionSeconds = 0;
+        DurationSeconds = 0;
+    }
 
     private void StartTrack(TrackViewModel track)
     {
