@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  IMPORTANTE: Identity/Name y Identity/Publisher deben coincidir EXACTAMENTE con los
+  valores que reserves en el Partner Center (Microsoft Store). Los de abajo son
+  provisorios para pruebas locales. Al asociar la app con la Store desde Visual Studio
+  (Publicar > Asociar app con la tienda), VS los reemplaza automáticamente.
+-->
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap rescap">
+
+  <Identity
+    Name="RoberthDudiver.DudiverMusic"
+    Publisher="CN=Roberth Dudiver"
+    Version="1.0.0.0" />
+
+  <Properties>
+    <DisplayName>Dudiver Music</DisplayName>
+    <PublisherDisplayName>Roberth Dudiver</PublisherDisplayName>
+    <Logo>Images\StoreLogo.png</Logo>
+    <Description>Reproductor de música moderno y sencillo. Arrastrá una carpeta de tu PC y suena al instante: playlists, salida de audio configurable, sin subir nada y sin cuenta.</Description>
+  </Properties>
+
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.26100.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="es" />
+    <Resource Language="en" />
+  </Resources>
+
+  <Applications>
+    <Application Id="DudiverMusic" Executable="DudiverMusic.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements
+        DisplayName="Dudiver Music"
+        Description="Reproductor de música moderno y sencillo. Arrastrá una carpeta y suena."
+        BackgroundColor="#0A0A12"
+        Square150x150Logo="Images\Square150x150Logo.png"
+        Square44x44Logo="Images\Square44x44Logo.png">
+        <uap:DefaultTile
+          Wide310x150Logo="Images\Wide310x150Logo.png"
+          Square71x71Logo="Images\Square71x71Logo.png"
+          Square310x310Logo="Images\Square310x310Logo.png">
+          <uap:ShowNameOnTiles>
+            <uap:ShowOn Tile="square150x150Logo" />
+            <uap:ShowOn Tile="wide310x150Logo" />
+          </uap:ShowNameOnTiles>
+        </uap:DefaultTile>
+        <uap:SplashScreen Image="Images\SplashScreen.png" BackgroundColor="#0A0A12" />
+      </uap:VisualElements>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+</Package>

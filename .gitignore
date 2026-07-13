@@ -18,3 +18,8 @@ BundleArtifacts/
 # OS
 Thumbs.db
 Desktop.ini
+
+# Artefactos de empaquetado MSIX (build local)
+_msix/
+*.appxsym
+*.appxupload
