@@ -1,9 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  IMPORTANTE: Identity/Name y Identity/Publisher deben coincidir EXACTAMENTE con los
-  valores que reserves en el Partner Center (Microsoft Store). Los de abajo son
-  provisorios para pruebas locales. Al asociar la app con la Store desde Visual Studio
-  (Publicar > Asociar app con la tienda), VS los reemplaza automáticamente.
+  Identity reservada en Partner Center (Store ID 9P5LKKN9MMTM). NO cambiar Name/Publisher:
+  deben coincidir EXACTAMENTE con la app reservada o la Store rechaza el paquete.
 -->
 <Package
   xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
@@ -12,13 +10,13 @@
   IgnorableNamespaces="uap rescap">
 
   <Identity
-    Name="RoberthDudiver.DudiverMusic"
-    Publisher="CN=Roberth Dudiver"
+    Name="Dudiver.DudiverMusic"
+    Publisher="CN=18FB64AB-5A7B-47F7-AD1B-5E66071B7C0F"
     Version="1.0.0.0" />
 
   <Properties>
     <DisplayName>Dudiver Music</DisplayName>
-    <PublisherDisplayName>Roberth Dudiver</PublisherDisplayName>
+    <PublisherDisplayName>Dudiver</PublisherDisplayName>
     <Logo>Images\StoreLogo.png</Logo>
     <Description>Reproductor de música moderno y sencillo. Arrastrá una carpeta de tu PC y suena al instante: playlists, salida de audio configurable, sin subir nada y sin cuenta.</Description>
   </Properties>
