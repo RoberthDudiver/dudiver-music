@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Dudiver Marketing Studio</title>
+<meta name="description" content="Dudiver Marketing Studio: genera videos con IA y publica tu contenido en TikTok, YouTube e Instagram, automáticamente, desde un solo lugar." />
+<meta name="robots" content="index, follow" />
+<link rel="canonical" href="https://app.music.dudiver.net/studio" />
+<link rel="icon" type="image/png" href="logo.png" />
+<meta property="og:title" content="Dudiver Marketing Studio" />
+<meta property="og:description" content="Genera videos con IA y publícalos en TikTok, YouTube e Instagram, automáticamente." />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://app.music.dudiver.net/studio" />
+<style>
+  :root {
+    --bg:#faf8ff; --ink:#1a1030; --violet:#7c5cf6; --magenta:#e0447f;
+    --muted:#6b6480; --card:#ffffff; --line:#ece7f6;
+  }
+  * { box-sizing:border-box; }
+  html { scroll-behavior:smooth; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+    font-family:"Segoe UI",Inter,system-ui,-apple-system,Roboto,sans-serif; line-height:1.6; }
+  a { color:var(--violet); text-decoration:none; }
+  .wrap { max-width:1060px; margin:0 auto; padding:0 22px; }
+  .grad { background:linear-gradient(90deg,var(--violet),var(--magenta)); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+
+  /* Nav */
+  header.nav { position:sticky; top:0; z-index:10; backdrop-filter:blur(8px);
+    background:rgba(250,248,255,.82); border-bottom:1px solid var(--line); }
+  .nav .wrap { display:flex; align-items:center; gap:16px; height:64px; }
+  .brand { display:flex; align-items:center; gap:11px; font-weight:600; }
+  .badge { width:38px; height:38px; border-radius:11px; flex:0 0 auto;
+    background:linear-gradient(135deg,var(--violet),var(--magenta)); display:grid; place-items:center; }
+  .badge svg { width:20px; height:20px; }
+  .wm { font-size:16px; color:var(--ink); }
+  .wm b { color:var(--violet); }
+  header.nav nav { margin-left:auto; display:flex; gap:22px; font-size:14.5px; }
+  header.nav nav a { color:var(--muted); }
+  header.nav nav a:hover { color:var(--ink); }
+
+  /* Hero */
+  .hero { position:relative; overflow:hidden;
+    background:radial-gradient(1100px 500px at 80% -10%, rgba(224,68,127,.14), transparent 60%),
+               radial-gradient(900px 500px at 0% 0%, rgba(124,92,246,.16), transparent 55%); }
+  .hero .wrap { padding:70px 22px 60px; }
+  .eyebrow { display:inline-block; font-size:12.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--violet); background:#efeaff; padding:6px 12px; border-radius:999px; margin-bottom:18px; }
+  h1 { font-size:clamp(30px,5vw,48px); line-height:1.12; margin:0 0 14px; letter-spacing:-.01em; }
+  .sub { font-size:clamp(16px,2.2vw,20px); color:var(--muted); max-width:640px; margin:0 0 24px; }
+  .chips { display:flex; flex-wrap:wrap; gap:10px; }
+  .chip { display:inline-flex; align-items:center; gap:8px; background:var(--card); border:1px solid var(--line);
+    padding:8px 14px; border-radius:999px; font-size:14px; font-weight:600; box-shadow:0 4px 14px rgba(26,16,48,.05); }
+  .chip .dot { width:9px; height:9px; border-radius:50%; }
+
+  /* Hero visual (mock de reels) */
+  .reels { display:flex; gap:14px; margin-top:40px; }
+  .reel { flex:1; aspect-ratio:9/16; max-width:150px; border-radius:16px; box-shadow:0 14px 34px rgba(26,16,48,.14);
+    position:relative; overflow:hidden; }
+  .reel:nth-child(1){ background:linear-gradient(160deg,#7c5cf6,#b06cf0); }
+  .reel:nth-child(2){ background:linear-gradient(160deg,#e0447f,#f3789a); transform:translateY(-14px); }
+  .reel:nth-child(3){ background:linear-gradient(160deg,#5a8cf6,#6ad0e0); }
+  .reel:nth-child(4){ background:linear-gradient(160deg,#8b5cf6,#e0447f); transform:translateY(-6px); }
+  .reel::after { content:''; position:absolute; left:12px; right:12px; bottom:14px; height:9px; border-radius:5px;
+    background:rgba(255,255,255,.55); box-shadow:0 16px 0 rgba(255,255,255,.35), 0 30px 0 rgba(255,255,255,.22); }
+  .reel .play { position:absolute; inset:0; margin:auto; width:44px; height:44px; border-radius:50%;
+    background:rgba(255,255,255,.9); display:grid; place-items:center; }
+  .reel .play svg { width:18px; height:18px; margin-left:2px; color:#1a1030; }
+
+  /* Sections */
+  section { padding:66px 0; }
+  section h2 { font-size:clamp(24px,3.4vw,32px); margin:0 0 8px; text-align:center; letter-spacing:-.01em; }
+  section .lede { text-align:center; color:var(--muted); max-width:560px; margin:0 auto 40px; }
+
+  .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:22px;
+    box-shadow:0 6px 20px rgba(26,16,48,.04); }
+  .card .ic { width:44px; height:44px; border-radius:12px; display:grid; place-items:center; margin-bottom:14px;
+    background:linear-gradient(135deg, rgba(124,92,246,.16), rgba(224,68,127,.16)); }
+  .card .ic svg { width:22px; height:22px; color:var(--violet); }
+  .card h3 { margin:0 0 6px; font-size:17px; }
+  .card p { margin:0; color:var(--muted); font-size:14.5px; }
+
+  .alt { background:#f4f0ff; }
+  .steps { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; counter-reset:s; }
+  .step { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:24px 22px; position:relative; }
+  .step .n { width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg,var(--violet),var(--magenta));
+    color:#fff; font-weight:700; display:grid; place-items:center; margin-bottom:12px; }
+  .step h3 { margin:0 0 6px; font-size:17px; }
+  .step p { margin:0; color:var(--muted); font-size:14.5px; }
+
+  .plats { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; margin-bottom:22px; }
+  .plat { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:22px; text-align:center; }
+  .plat .name { font-weight:700; font-size:16px; margin:8px 0 4px; }
+  .plat .desc { color:var(--muted); font-size:13.5px; }
+  .tk { background:var(--card); border:1px solid var(--line); border-left:4px solid var(--violet);
+    border-radius:14px; padding:20px 22px; }
+  .tk h3 { margin:0 0 8px; font-size:17px; }
+  .tk p { margin:0 0 10px; color:var(--muted); font-size:14.5px; }
+  .tk code { background:#f0ebff; color:var(--violet); font-weight:600; padding:2px 8px; border-radius:6px; font-size:13.5px; }
+
+  footer { background:var(--ink); color:#d9d2ea; padding:40px 0; }
+  footer .wrap { display:flex; flex-wrap:wrap; gap:16px 28px; align-items:center; }
+  footer .fbrand { font-weight:700; color:#fff; }
+  footer .fbrand b { color:#b9a8ff; }
+  footer nav { margin-left:auto; display:flex; gap:20px; flex-wrap:wrap; font-size:14px; }
+  footer a { color:#c9bff0; }
+  footer a:hover { color:#fff; }
+  footer .copy { width:100%; color:#8f86a8; font-size:12.5px; padding-top:8px; border-top:1px solid rgba(255,255,255,.08); }
+
+  @media (max-width:760px) {
+    .grid, .steps, .plats { grid-template-columns:1fr; }
+    header.nav nav { display:none; }
+    .reels { display:none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap">
+    <div class="brand">
+      <span class="badge">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M4 12a8 8 0 0 1 8-8M4 12a8 8 0 0 0 8 8M12 4a8 8 0 0 1 8 8M12 20a8 8 0 0 0 8-8" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="12" r="2.4" fill="#fff"/></svg>
+      </span>
+      <span class="wm"><b>Dudiver</b> Marketing Studio</span>
+    </div>
+    <nav>
+      <a href="#features">Características</a>
+      <a href="#how">Cómo funciona</a>
+      <a href="#integraciones">Integraciones</a>
+    </nav>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap">
+    <span class="eyebrow">Publicación de contenido propio</span>
+    <h1>Publica tu música en todas tus redes, <span class="grad">desde un solo lugar</span>.</h1>
+    <p class="sub">Dudiver Marketing Studio genera videos con IA y los publica en TikTok, YouTube e Instagram,
+      automáticamente. Tú eliges la canción; la app hace el resto.</p>
+    <div class="chips">
+      <span class="chip"><span class="dot" style="background:#000"></span> TikTok</span>
+      <span class="chip"><span class="dot" style="background:#ff0033"></span> YouTube</span>
+      <span class="chip"><span class="dot" style="background:#e0447f"></span> Instagram</span>
+    </div>
+    <div class="reels" aria-hidden="true">
+      <div class="reel"><span class="play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span></div>
+      <div class="reel"><span class="play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span></div>
+      <div class="reel"><span class="play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span></div>
+      <div class="reel"><span class="play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span></div>
+    </div>
+  </div>
+</section>
+
+<section id="features">
+  <div class="wrap">
+    <h2>Características</h2>
+    <p class="lede">Todo lo necesario para convertir una canción en contenido listo para publicar.</p>
+    <div class="grid">
+      <div class="card">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M18 6l-2.5 2.5M8.5 15.5 6 18" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></div>
+        <h3>Genera videos con IA</h3>
+        <p>Reels de letra sincronizada (karaoke) y videos completos, a partir de tus canciones. Una IA local dirige
+          el arte según de qué trata la canción; los fondos se generan.</p>
+      </div>
+      <div class="card">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></div>
+        <h3>Render rápido</h3>
+        <p>La letra se quema como subtítulos nativos, así que un reel sale en unos ~20 segundos.</p>
+      </div>
+      <div class="card">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M3 12h18M12 3c3 3.5 3 14 0 18M12 3c-3 3.5-3 14 0 18" stroke="currentColor" stroke-width="1.5"/></svg></div>
+        <h3>Multi-plataforma</h3>
+        <p>Publica el mismo reel en TikTok, YouTube (Shorts) e Instagram; el video completo 16:9 va a YouTube.</p>
+      </div>
+      <div class="card">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none"><rect x="4" y="4" width="16" height="16" rx="2.5" stroke="currentColor" stroke-width="1.7"/><path d="M8 9h8M8 13h8M8 17h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></div>
+        <h3>La IA arma la ficha</h3>
+        <p>Lee la letra y escribe el título, la descripción (con enlaces) y las etiquetas, y genera la miniatura.</p>
+      </div>
+      <div class="card">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none"><rect x="3.5" y="5" width="17" height="15" rx="2.5" stroke="currentColor" stroke-width="1.7"/><path d="M3.5 9h17M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></div>
+        <h3>Calendario y piloto automático</h3>
+        <p>Programa y publica solo, en los horarios que elijas. Encendés el piloto y la agencia trabaja.</p>
+      </div>
+      <div class="card">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3 5 6v5c0 4.5 3 8 7 10 4-2 7-5.5 7-10V6l-7-3z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9.5 12l1.8 1.8L15 10" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <h3>Todo local y privado</h3>
+        <p>Las credenciales y tokens se guardan localmente; nada pasa por servidores de terceros.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="how" class="alt">
+  <div class="wrap">
+    <h2>Cómo funciona</h2>
+    <p class="lede">De una canción a una publicación, en tres pasos.</p>
+    <div class="steps">
+      <div class="step"><div class="n">1</div><h3>Eliges la canción</h3><p>Seleccionas el tema y el formato: reel de letra o video completo.</p></div>
+      <div class="step"><div class="n">2</div><h3>La IA genera el video</h3><p>Crea las imágenes y la letra sincronizada, y arma la ficha: título, descripción, etiquetas y miniatura.</p></div>
+      <div class="step"><div class="n">3</div><h3>Se publica</h3><p>Va a tus cuentas de TikTok, YouTube e Instagram: manual o por calendario.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="integraciones">
+  <div class="wrap">
+    <h2>Integraciones</h2>
+    <p class="lede">Publicamos únicamente contenido propio de Dudiver en nuestras propias cuentas autorizadas.</p>
+    <div class="plats">
+      <div class="plat"><div class="name">TikTok</div><div class="desc">Reels verticales mediante la Content Posting API.</div></div>
+      <div class="plat"><div class="name">YouTube</div><div class="desc">Shorts verticales y videos completos 16:9.</div></div>
+      <div class="plat"><div class="name">Instagram</div><div class="desc">Reels verticales publicados por la API oficial.</div></div>
+    </div>
+    <div class="tk">
+      <h3>Integración con TikTok</h3>
+      <p>Usamos la <b>Content Posting API</b> de TikTok para subir y publicar nuestros videos en la cuenta de TikTok
+        que autorizamos mediante el flujo oficial (<b>Login Kit</b>). El acceso puede revocarse en cualquier momento
+        desde la configuración de tu cuenta de TikTok.</p>
+      <p>Permisos (scopes) utilizados: <code>video.publish</code> &nbsp; <code>video.upload</code></p>
+      <p style="margin:0">No accedemos a mensajes privados, contactos ni a datos de otras personas: la herramienta
+        solo publica nuestro contenido en nuestras cuentas.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="fbrand"><b>Dudiver</b> Marketing Studio</div>
+    <nav>
+      <a href="/studio/privacy">Política de Privacidad</a>
+      <a href="/studio/terms">Términos de Servicio</a>
+      <a href="mailto:rdudiver@gmail.com">rdudiver@gmail.com</a>
+    </nav>
+    <div class="copy">© 2026 Dudiver · Herramienta interna de publicación de contenido propio (Dudiver Kids, Dudiver Music y afines).</div>
+  </div>
+</footer>
+
+</body>
+</html>
